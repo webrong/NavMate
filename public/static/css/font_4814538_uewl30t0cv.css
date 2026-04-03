@@ -1,0 +1,137 @@
+﻿@font-face {
+  font-family: "io"; /* Project id 4814538 */
+  /* Color fonts */
+  src: 
+       url('../../static/font/font_4814538_uewl30t0cv.woff2') format('woff2'),
+       url('../../static/font/font_4814538_uewl30t0cv-1.woff') format('woff'),
+       url('../../static/font/font_4814538_uewl30t0cv.ttf') format('truetype');
+}
+
+.io {
+  font-family: "io" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.io-youxi1:before {
+  content: "\e608";
+}
+
+.io-youxi2:before {
+  content: "\e6ca";
+}
+
+.io-lijitougao-xiayibu:before {
+  content: "\e6241";
+}
+
+.io-zuopintougao:before {
+  content: "\e72c";
+}
+
+.io-copyright-fill:before {
+  content: "\e6b2";
+}
+
+.io-copyright-line:before {
+  content: "\e6b3";
+}
+
+.io-anquanguanli:before {
+  content: "\e61f";
+}
+
+.io-woyaozhuanqian:before {
+  content: "\e63b";
+}
+
+.io-qqqun111:before {
+  content: "\e6003";
+}
+
+.io-redian11:before {
+  content: "\e61b3";
+}
+
+.io-youxiang23:before {
+  content: "\e63ca";
+}
+
+.io-weixin23:before {
+  content: "\e66c";
+}
+
+.io-qq23:before {
+  content: "\e60a2";
+}
+
+.io-weibo2:before {
+  content: "\e62f3";
+}
+
+.io-yewujianmo:before {
+  content: "\e606";
+}
+
+.io-zixun-xianxing:before {
+  content: "\e63f";
+}
+
+.io-paihangbang1:before {
+  content: "\e609";
+}
+
+.io-quanbu-qitafenlei:before {
+  content: "\e669";
+}
+
+.io-xinmeiti:before {
+  content: "\e646";
+}
+
+.io-fuwuyoujianshenghuofuwu:before {
+  content: "\e689";
+}
+
+.io-shenghuofuwu:before {
+  content: "\e651";
+}
+
+.io-xuexi:before {
+  content: "\e61a";
+}
+
+.io-fuwutuijian:before {
+  content: "\e6df";
+}
+
+.io-yingyinyule:before {
+  content: "\e605";
+}
+
+.io-shenghuofuwu11:before {
+  content: "\e67e1";
+}
+
+.io-zaixiangongju:before {
+  content: "\e619";
+}
+
+.io-yingyongruanjian:before {
+  content: "\e688";
+}
+
+.io-sucaizhongxin:before {
+  content: "\e610";
+}
+
+.io-kaishixunjian:before {
+  content: "\e7e7";
+}
+
+.io-a-Aigongjuxiang:before {
+  content: "\e6e6";
+}
+

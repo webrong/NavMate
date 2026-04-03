@@ -1,0 +1,723 @@
+// Import Bootstrap 5.3.8
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/type";
+@import "bootstrap/scss/images";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/tables";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/dropdown";
+@import "bootstrap/scss/button-group";
+@import "bootstrap/scss/nav";
+@import "bootstrap/scss/navbar";
+@import "bootstrap/scss/card";
+@import "bootstrap/scss/accordion";
+@import "bootstrap/scss/breadcrumb";
+@import "bootstrap/scss/pagination";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/alert";
+@import "bootstrap/scss/list-group";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/toasts";
+@import "bootstrap/scss/modal";
+@import "bootstrap/scss/tooltip";
+@import "bootstrap/scss/popover";
+@import "bootstrap/scss/carousel";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/offcanvas";
+@import "bootstrap/scss/placeholders";
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/utilities/api";
+
+// ===== sbrdh.com 完全一致的 CSS 变量 =====
+:root,
+[data-theme="orange"] {
+    --theme-color: #fc7c3c;
+    --theme-color-rgb: 252, 124, 60;
+    --theme-color-bg: rgba(var(--theme-color-rgb), 0.1);
+    --hover-color: #e33636;
+    --focus-color: var(--theme-color);
+    --focus-shadow-color: rgba(227, 54, 54, 0.6);
+    --main-color: #484b4f;
+    --main-shadow: rgba(0, 0, 0, 0.1);
+    --main-bg-color: #fff;
+    --main-radius: 8px;
+    --main-radius-bg: #93969a;
+    --main-aside-basis-width: 190px;
+    --main-aside-width: var(--main-aside-basis-width);
+    --main-nav-hight: 80px;
+    --main-max-width: 1260px;
+    --main-blur-bg-color: rgba(245, 245, 245, 0.75);
+    --main-blur-bg-color2: rgba(245, 245, 245, 0.85);
+    --main-blur-bg-color3: rgba(245, 245, 245, 0.6);
+    --muted-color: #93959a;
+    --muted-color2: #66686b;
+    --muted-color3: #a5a8aa;
+    --muted-bg-color: #e6e8ea;
+    --muted-bg-color-l: #f1f2f4;
+    --muted-shadow: rgba(116, 116, 116, 0.1);
+    --muted-bg-a-color: var(--muted-shadow);
+    --muted-blur-bg-color: rgba(220, 220, 220, 0.6);
+    --body-bg-color: #f5f5f5;
+    --posts-card-scale: 70%;
+    --posts-list-scale: 70%;
+    --home-max-width: 1900px;
+    --home-card-padding: 6px;
+    --input-bg-color: var(--body-bg-color);
+    --theme-border-radius: var(--main-radius);
+    --theme-border-radius-xxl: calc(var(--main-radius) + 8px);
+    --theme-border-radius-xl: calc(var(--main-radius) + 4px);
+    --theme-border-radius-lg: calc(var(--main-radius) - 2px);
+    --theme-border-radius-md: calc(var(--main-radius) - 4px);
+    --theme-border-radius-sm: calc(var(--main-radius) - 6px);
+    --theme-border-radius-xs: calc(var(--main-radius) - 8px);
+}
+
+// 蓝色主题
+[data-theme="blue"] {
+    --theme-color: #3b82f6;
+    --theme-color-rgb: 59, 130, 246;
+    --hover-color: #2563eb;
+    --focus-shadow-color: rgba(59, 130, 246, 0.6);
+}
+
+// 绿色主题
+[data-theme="green"] {
+    --theme-color: #22c55e;
+    --theme-color-rgb: 34, 197, 94;
+    --hover-color: #16a34a;
+    --focus-shadow-color: rgba(34, 197, 94, 0.6);
+}
+
+// 紫色主题
+[data-theme="purple"] {
+    --theme-color: #a855f7;
+    --theme-color-rgb: 168, 85, 247;
+    --hover-color: #9333ea;
+    --focus-shadow-color: rgba(168, 85, 247, 0.6);
+}
+
+// 粉色主题
+[data-theme="pink"] {
+    --theme-color: #ec4899;
+    --theme-color-rgb: 236, 72, 153;
+    --hover-color: #db2777;
+    --focus-shadow-color: rgba(236, 72, 153, 0.6);
+}
+
+// 深色主题
+[data-theme="dark"] {
+    --main-color: #e5e7eb;
+    --main-bg-color: #1f2937;
+    --main-shadow: rgba(0, 0, 0, 0.3);
+    --main-radius-bg: #6b7280;
+    --main-blur-bg-color: rgba(31, 41, 55, 0.95);
+    --main-blur-bg-color2: rgba(31, 41, 55, 0.98);
+    --main-blur-bg-color3: rgba(31, 41, 55, 0.9);
+    --muted-color: #9ca3af;
+    --muted-color2: #d1d5db;
+    --muted-color3: #6b7280;
+    --muted-bg-color: #374151;
+    --muted-bg-color-l: #4b5563;
+    --muted-shadow: rgba(0, 0, 0, 0.3);
+    --muted-blur-bg-color: rgba(55, 65, 81, 0.8);
+    --body-bg-color: #111827;
+    --input-bg-color: #374151;
+}
+
+// ===== Global Overrides =====
+body {
+    background: var(--body-bg-color);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+// ===== sbrdh.com Header Styles =====
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    transition: all 0.3s;
+}
+
+.header-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.blur-bg {
+    background-color: var(--main-blur-bg-color);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.header-nav {
+    height: var(--main-nav-hight);
+    transition: all 0.3s;
+}
+
+.nav-top {
+    height: 100%;
+}
+
+.header-banner {
+    padding-top: var(--main-nav-hight);
+}
+
+// ===== Search Section =====
+.search-container {
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+}
+
+.big-search {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-box-big {
+    position: relative;
+}
+
+.search-list-menu {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.search-menu {
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    transition: all 0.3s;
+    opacity: 0.7;
+}
+
+.search-menu:hover {
+    opacity: 1;
+}
+
+.search-menu.active {
+    opacity: 1;
+    font-weight: 500;
+}
+
+.search-form {
+    position: relative;
+}
+
+.search-key {
+    width: 100%;
+    height: 42px;
+    border-radius: 21px;
+    border: none;
+    padding: 0 50px 0 20px;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-tools {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.search-submit-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--theme-color);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.search-submit-btn:hover {
+    background: var(--hover-color);
+}
+
+.search-list-group {
+    margin-top: 15px;
+}
+
+.search-group {
+    display: none;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.search-group.active {
+    display: flex;
+}
+
+.search-term {
+    padding: 6px 16px;
+    border-radius: 15px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s;
+    opacity: 0.6;
+    border: 1px solid transparent;
+}
+
+.search-term:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.2);
+}
+
+.search-term.active {
+    opacity: 1;
+    border-color: rgba(255,255,255,0.5);
+    font-weight: 500;
+}
+
+// ===== Layout =====
+.ioui-content {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.home-container {
+    max-width: var(--home-max-width);
+    margin: 0 auto;
+}
+
+.content-layout {
+    margin-left: 10px;
+}
+
+@media (min-width: 992px) {
+    .content-layout.show-card {
+        margin-left: 10px;
+    }
+}
+
+// ===== Sidebar =====
+.ioui-aside {
+    display: none;
+}
+
+@media (min-width: 992px) {
+    .ioui-aside {
+        display: block;
+    }
+}
+
+.sidebar-wrap {
+    width: var(--main-aside-width, 190px);
+    flex-shrink: 0;
+}
+
+.aside-body {
+    position: sticky !important;
+    top: 80px !important;
+    width: var(--main-aside-width, 190px);
+    max-height: calc(100vh - 80px - 10px);
+    overflow-y: auto;
+    transition: width 0.2s ease, opacity 0.2s ease;
+    z-index: 99;
+    font-size: 0.875rem;
+    opacity: 1 !important;
+    bottom: auto !important;
+}
+
+// Override static main.min.css rule that hides aside when have-banner
+.have-banner .aside-body {
+    top: 80px !important;
+    opacity: 1 !important;
+}
+
+.aside-card {
+    background-color: var(--main-bg-color);
+    border-radius: var(--main-radius);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: background-color 0.3s;
+    height: 100%;
+    box-shadow: var(--main-shadow);
+}
+
+// Override static main.min.css .aside-card padding
+.ioui-aside .aside-card {
+    padding: 6px;
+}
+
+.ioui-aside .aside-card ul {
+    position: relative;
+    list-style: none;
+    padding: 0;
+    flex: 1;
+    margin: 0;
+}
+
+.aside-ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.aside-ul::-webkit-scrollbar {
+    display: none;
+}
+
+.aside-item {
+    margin-bottom: 0.125rem;
+}
+
+.aside-btn {
+    padding: 5px 7px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    transition: 0.3s;
+    white-space: nowrap;
+    width: 100%;
+    color: var(--muted-color);
+    text-decoration: none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 0.8125rem;
+}
+
+.aside-btn:hover {
+    background-color: rgba(0,0,0,0.04);
+    color: var(--main-color);
+}
+
+.aside-btn.sidebar-link {
+    position: relative;
+}
+
+.aside-btn.sidebar-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    background: var(--theme-color);
+    border-radius: 0 2px 2px 0;
+    transition: height 0.15s ease;
+}
+
+.aside-btn.sidebar-link.active::before {
+    height: 60%;
+}
+
+.aside-btn.sidebar-link.active {
+    color: var(--main-color) !important;
+    background: rgba(0,0,0,0.04) !important;
+}
+
+.aside-btn svg {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+.aside-btn svg.rotate-180 {
+    transform: rotate(180deg);
+}
+
+.aside-sub {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: none;
+}
+
+.aside-sub.show {
+    display: block;
+}
+
+.aside-sub .aside-btn {
+    padding-left: 1.75rem;
+    font-size: 0.8125rem;
+}
+
+.sidebar-collapsed {
+    width: 64px !important;
+}
+
+.sidebar-collapsed .aside-btn span:not(.submenu-arrow) {
+    display: none !important;
+}
+
+.sidebar-collapsed .aside-btn {
+    justify-content: center;
+    padding-left: 0 !important;
+    padding-right: 0;
+}
+
+.sidebar-collapsed .aside-sub {
+    display: none !important;
+}
+
+.aside-bottom {
+    border-top: 1px solid rgba(0,0,0,0.06);
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+// ===== Search Tabs =====
+.search-cat-tab {
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+.search-cat-tab:hover {
+    opacity: 1;
+}
+
+.search-cat-tab.active {
+    opacity: 1;
+    font-weight: 500;
+}
+
+.engine-tab {
+    opacity: 0.6;
+    transition: opacity 0.3s;
+    position: relative;
+}
+
+.engine-tab:hover {
+    opacity: 1;
+}
+
+.engine-tab.active {
+    opacity: 1;
+    font-weight: 500;
+}
+
+.engine-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid white;
+}
+
+// ===== Content Card =====
+.content-card {
+    background: var(--main-bg-color);
+    border-radius: var(--main-radius);
+    padding: var(--home-card-padding);
+    margin-bottom: 0.75rem;
+    box-shadow: var(--main-shadow);
+}
+
+// Override static main.min.css .show-card .content-card padding
+.show-card .content-card {
+    background: var(--main-bg-color);
+    padding: var(--home-card-padding);
+    border-radius: var(--main-radius);
+    transition: background-color 0.3s;
+}
+
+// Override static main.min.css .show-card .posts-item shadow
+.show-card .posts-item {
+    box-shadow: inset 0 0 2px 0 rgba(116,116,116,0.1), 0 20px 25px -10px rgba(0,0,0,0.1);
+}
+
+.io-slider-tab {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0.5rem;
+}
+
+@media (min-width: 768px) {
+    .io-slider-tab {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+
+.tab-title {
+    color: var(--main-color);
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0 0.5rem 0 0;
+}
+
+@media (min-width: 768px) {
+    .tab-title {
+        margin: 0 0.5rem 0 0;
+    }
+}
+
+.tab-to-more {
+    flex: 1;
+}
+
+// ===== Site Card =====
+// Use higher specificity (.posts-item.sites-item) to override static main.min.css
+.posts-item,
+.sites-item {
+    position: relative;
+    margin: 3px;
+    background: var(--main-bg-color);
+    border-radius: var(--main-radius);
+    transition: box-shadow 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.posts-item:hover,
+.sites-item:hover {
+    box-shadow: inset 0 0 2px 0 rgba(116,116,116,0.1), 0 20px 25px -10px rgba(0,0,0,0.1);
+}
+
+.sites-item .sites-body {
+    flex: 1;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow: hidden;
+    padding: 6px 8px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+    width: 100%;
+}
+
+.item-header {
+    flex-shrink: 0;
+    margin-right: 7px;
+}
+
+.posts-item.sites-item .item-media,
+.sites-item .item-media {
+    width: 32px;
+    height: 32px;
+    padding-bottom: 0 !important;
+    border-radius: 8px;
+}
+
+.posts-item.sites-item .item-title,
+.sites-item .item-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--main-color);
+    margin: 0;
+}
+
+.item-body {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.line1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sites-tags {
+    display: flex;
+    align-items: center;
+}
+
+.togo {
+    padding: 6px;
+    color: var(--muted-color);
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s ease;
+    text-decoration: none;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.posts-item:hover .togo,
+.sites-item:hover .togo {
+    opacity: 0.8;
+    transform: translate(12px, -50%);
+}
+
+.search-hidden {
+    display: none !important;
+}
+
+// ===== Grid System =====
+.row-col-2 > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-sm-2 > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-md-2 > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-lg-3 > * { flex: 0 0 calc(100% / 3); max-width: calc(100% / 3); }
+.row-col-xl-5 > * { flex: 0 0 20%; max-width: 20%; }
+.row-col-xxl-6 > * { flex: 0 0 calc(100% / 6); max-width: calc(100% / 6); }
+
+.row-col-2a > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-sm-2a > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-md-2a > * { flex: 0 0 50%; max-width: 50%; }
+.row-col-lg-3a > * { flex: 0 0 25%; max-width: 25%; }
+.row-col-xl-5a > * { flex: 0 0 20%; max-width: 20%; }
+.row-col-xxl-6a > * { flex: 0 0 calc(100% / 6); max-width: calc(100% / 6); }
+
+@media (max-width: 575px) {
+    .row-col-2 > * { flex: 0 0 100%; max-width: 100%; }
+}
+
+// ===== Mobile =====
+@media (max-width: 991px) {
+    .content-layout {
+        margin-left: 0 !important;
+    }
+
+    .ioui-aside.mobile-show {
+        display: block;
+        position: fixed;
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        width: 260px;
+        z-index: 40;
+        background: white;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.08);
+        overflow-y: auto;
+    }
+
+    .aside-body {
+        position: static !important;
+        width: 100% !important;
+    }
+}
+
+// ===== 主题样式表 =====
+// iconfont.css and font_io.css are already loaded via static <link> tags in <head>
+// main.min.css is also loaded via static <link> — do NOT import here or it overrides our custom styles
