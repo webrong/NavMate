@@ -45,7 +45,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
-          <button class="mobile-menu-btn d-md-none" @click="$emit('toggle-mobile-menu')">
+          <button class="mobile-menu-btn d-md-none" @click="$emit('toggle-mobile-menu')" aria-label="菜单">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />

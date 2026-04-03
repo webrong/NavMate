@@ -2,7 +2,7 @@
 <html lang="zh-Hans">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=0.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     <title>{{ config('app.name', '导航') }}</title>
     <meta name="theme-color" content="#f9f9f9" />
     <meta name="keywords" content="{{ config('app.name', '导航') }},办公导航,职场办公,办公网站,网址导航" />

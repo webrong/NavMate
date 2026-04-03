@@ -33,7 +33,7 @@
         </li>
       </ul>
       <div class="sidebar-bottom">
-        <button class="sidebar-collapse-btn" @click="$emit('toggle-collapse')">
+        <button class="sidebar-collapse-btn" @click="$emit('toggle-collapse')" aria-label="收起侧边栏">
           <svg :class="{ rotated: collapsed }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
