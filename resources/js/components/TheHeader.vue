@@ -39,6 +39,12 @@
         </div>
 
         <div class="header-actions">
+          <button class="header-search-btn d-none d-md-flex" @click="scrollToSearch" title="搜索">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
           <button class="mobile-menu-btn d-md-none" @click="$emit('toggle-mobile-menu')">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -147,9 +153,36 @@ function scheduleClose() {
     activeTool.value = null;
   }, 150);
 }
+
+function scrollToSearch() {
+  const el = document.querySelector('.search-input');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus();
+  }
+}
 </script>
 
 <style scoped>
+.header-search-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-color2);
+  transition: all 0.2s;
+}
+
+.header-search-btn:hover {
+  background: rgba(0,0,0,0.04);
+  color: var(--theme-color);
+}
+
 .quick-tools {
   display: flex;
   align-items: center;

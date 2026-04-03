@@ -6,12 +6,30 @@
           <a
             href="#"
             class="sidebar-link"
-            :class="{ active: activeId === cat.id }"
-            @click.prevent="scrollTo(cat.id)"
+            :class="{ active: activeId === cat.id, 'has-children': cat.hasChildren }"
+            @click.prevent="toggleCat(cat)"
           >
             <i :class="'io ' + cat.icon + ' icon-fw'"></i>
             <span class="sidebar-text">{{ cat.name }}</span>
+            <svg
+              v-if="cat.hasChildren"
+              class="sidebar-arrow"
+              :class="{ open: expandedId === cat.id }"
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><polyline points="9 18 15 12 9 6" /></svg>
           </a>
+          <ul v-if="cat.hasChildren && expandedId === cat.id" class="sidebar-sub">
+            <li v-for="child in cat.children" :key="child.id">
+              <a
+                href="#"
+                class="sidebar-link sub-link"
+                :class="{ active: activeId === child.id }"
+                @click.prevent="scrollTo(child.id)"
+              >
+                <span class="sidebar-text">{{ child.name }}</span>
+              </a>
+            </li>
+          </ul>
         </li>
       </ul>
       <div class="sidebar-bottom">
@@ -38,8 +56,16 @@ const emit = defineEmits(['close-mobile', 'toggle-collapse']);
 
 const store = useCategoryStore();
 const activeId = ref(null);
+const expandedId = ref(null);
 
 const sidebarItems = computed(() => store.sidebarItems);
+
+function toggleCat(cat) {
+  if (cat.hasChildren) {
+    expandedId.value = expandedId.value === cat.id ? null : cat.id;
+  }
+  scrollTo(cat.id);
+}
 
 function scrollTo(catId) {
   activeId.value = catId;

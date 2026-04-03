@@ -10,6 +10,7 @@
           @click="activeTabIdx = idx"
         >{{ tab.name }}</li>
       </ul>
+      <span class="section-more" v-if="tabs.length > 1">more+</span>
     </div>
     <div class="site-grid">
       <SiteCard

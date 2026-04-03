@@ -33,7 +33,6 @@
         </template>
       </template>
     </div>
-    <TheFooter />
   </div>
 </template>
 
@@ -43,7 +42,6 @@ import { useCategoryStore } from '../stores/categories';
 import { useSearchStore } from '../stores/search';
 import ContentSection from '../components/ContentSection.vue';
 import SiteCard from '../components/SiteCard.vue';
-import TheFooter from '../components/TheFooter.vue';
 
 const store = useCategoryStore();
 const searchStore = useSearchStore();

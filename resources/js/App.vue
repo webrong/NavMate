@@ -13,6 +13,7 @@
       <router-view />
     </main>
   </div>
+  <TheFooter />
 </template>
 
 <script setup>
@@ -22,6 +23,7 @@ import TheHeader from './components/TheHeader.vue';
 import TheSidebar from './components/TheSidebar.vue';
 import ThemeSwitcher from './components/ThemeSwitcher.vue';
 import SearchBar from './components/SearchBar.vue';
+import TheFooter from './components/TheFooter.vue';
 import { useCategoryStore } from './stores/categories';
 
 const route = useRoute();

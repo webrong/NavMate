@@ -1,7 +1,10 @@
 <template>
   <a :href="site.url" target="_blank" class="site-card" @click="trackClick">
+    <div v-if="site.favicon_url" class="site-card-bg">
+      <img :src="site.favicon_url" alt="" />
+    </div>
     <div class="site-favicon">
-      <img v-if="site.favicon_url" :src="site.favicon_url" :alt="site.title" loading="lazy" />
+      <img v-if="site.favicon_url" :src="site.favicon_url" :alt="site.title" loading="lazy" @error="imgError = true" />
       <span v-else class="site-favicon-letter">{{ firstLetter }}</span>
     </div>
     <div class="site-info">
@@ -13,11 +16,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
   site: { type: Object, required: true },
 });
+const imgError = ref(false);
 
 const firstLetter = computed(() => {
   return props.site.title ? props.site.title.charAt(0).toUpperCase() : '?';
