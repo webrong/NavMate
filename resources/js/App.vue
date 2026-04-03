@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, provide } from 'vue';
 import { useRoute } from 'vue-router';
 import TheHeader from './components/TheHeader.vue';
 import TheSidebar from './components/TheSidebar.vue';
@@ -31,4 +31,7 @@ const store = useCategoryStore();
 store.fetchCategories();
 
 const showSearch = computed(() => route.path === '/');
+
+const siteName = typeof document !== 'undefined' ? document.title : '导航';
+provide('siteName', siteName);
 </script>

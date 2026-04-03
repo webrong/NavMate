@@ -52,11 +52,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
 import { useSearchStore } from '../stores/search';
 
 const searchStore = useSearchStore();
-const siteName = document.querySelector('title')?.textContent || '导航';
+const siteName = inject('siteName', '导航');
 
 const keyword = computed({
   get: () => searchStore.keyword,

@@ -31,5 +31,6 @@
 </template>
 
 <script setup>
-const siteName = document.querySelector('meta[name="description"]')?.content || '导航';
+import { inject } from 'vue';
+const siteName = inject('siteName', '导航');
 </script>

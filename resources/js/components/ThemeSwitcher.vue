@@ -27,16 +27,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import { useTheme } from '../composables/useTheme';
 
 const { currentTheme, setTheme, themes } = useTheme();
 const showOptions = ref(false);
 
-function onClickOutside() { showOptions.value = false; }
-
-// Close on click outside
-if (typeof document !== 'undefined') {
-  document.addEventListener('click', onClickOutside);
+function onClickOutside(e) {
+  if (!e.target.closest('.theme-switcher')) {
+    showOptions.value = false;
+  }
 }
+
+document.addEventListener('click', onClickOutside);
+onUnmounted(() => document.removeEventListener('click', onClickOutside));
 </script>

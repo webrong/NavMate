@@ -745,6 +745,30 @@ a { color: inherit; text-decoration: none; }
     font-size: 13px;
 }
 
+.search-result-count {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted-color);
+    margin-left: 4px;
+}
+
+.search-clear-btn {
+    margin-left: auto;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--muted-color);
+    background: none;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.search-clear-btn:hover {
+    color: var(--theme-color);
+    border-color: var(--theme-color);
+}
+
 /* ===== Responsive ===== */
 @media (min-width: 768px) {
     .d-md-none { display: none !important; }

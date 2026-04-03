@@ -26,14 +26,20 @@ const firstLetter = computed(() => {
 function trackClick() {
   if (!props.site.id) return;
   const token = document.querySelector('meta[name="csrf-token"]')?.content;
-  fetch('/api/click', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': token,
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify({ site_id: props.site.id }),
-  }).catch(() => {});
+  const payload = JSON.stringify({ site_id: props.site.id });
+  const url = '/api/click';
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
+  } else {
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': token,
+        'Accept': 'application/json',
+      },
+      body: payload,
+    }).catch(() => {});
+  }
 }
 </script>
