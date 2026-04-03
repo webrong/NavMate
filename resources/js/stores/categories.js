@@ -28,6 +28,7 @@ export const useCategoryStore = defineStore('categories', {
         async fetchCategories() {
             if (this.categories.length > 0) return;
             this.loading = true;
+            this.error = null;
             try {
                 const { data } = await axios.get('/api/categories');
                 this.categories = data;

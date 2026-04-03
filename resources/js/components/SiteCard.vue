@@ -1,10 +1,10 @@
 <template>
   <a :href="site.url" target="_blank" class="site-card" @click="trackClick">
-    <div v-if="site.favicon_url" class="site-card-bg">
+    <div v-if="site.favicon_url && !imgError" class="site-card-bg">
       <img :src="site.favicon_url" alt="" />
     </div>
     <div class="site-favicon">
-      <img v-if="site.favicon_url" :src="site.favicon_url" :alt="site.title" loading="lazy" @error="imgError = true" />
+      <img v-if="site.favicon_url && !imgError" :src="site.favicon_url" :alt="site.title" loading="lazy" @error="imgError = true" />
       <span v-else class="site-favicon-letter">{{ firstLetter }}</span>
     </div>
     <div class="site-info">
