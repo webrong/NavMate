@@ -8,7 +8,7 @@ export default defineConfig({
         vue(),
         tailwindcss(),
         laravel({
-            input: ['resources/css/tailwind.css', 'resources/css/app.scss', 'resources/js/app.js', 'resources/js/frontend.js'],
+            input: ['resources/css/tailwind.css', 'resources/css/app.scss', 'resources/js/app.js'],
             refresh: true,
         }),
     ],
