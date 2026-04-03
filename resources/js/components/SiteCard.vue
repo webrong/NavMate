@@ -4,7 +4,11 @@
       <img v-if="site.favicon_url" :src="site.favicon_url" :alt="site.title" loading="lazy" />
       <span v-else class="site-favicon-letter">{{ firstLetter }}</span>
     </div>
-    <span class="site-name">{{ site.title }}</span>
+    <div class="site-info">
+      <span class="site-name">{{ site.title }}</span>
+      <span class="site-desc" v-if="site.description">{{ site.description }}</span>
+    </div>
+    <span class="site-goto">&#8599;</span>
   </a>
 </template>
 

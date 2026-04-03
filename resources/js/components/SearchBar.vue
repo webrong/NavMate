@@ -1,49 +1,52 @@
 <template>
   <div class="search-banner">
     <div class="search-container">
-      <!-- Category tabs -->
-      <div class="search-group-tabs">
-        <button
-          v-for="g in groups" :key="g.id"
-          class="search-group-tab"
-          :class="{ active: activeGroup === g.id }"
-          @click="setGroup(g.id)"
-        >{{ g.label }}</button>
+      <!-- Inner search box (centered, constrained width) -->
+      <div class="big-search">
+        <!-- Category tabs -->
+        <div class="search-group-tabs">
+          <button
+            v-for="g in groups" :key="g.id"
+            class="search-group-tab"
+            :class="{ active: activeGroup === g.id }"
+            @click="setGroup(g.id)"
+          >{{ g.label }}</button>
+        </div>
+
+        <!-- Search input -->
+        <form class="search-form" @submit.prevent="doSearch">
+          <input
+            v-model="keyword"
+            type="text"
+            class="search-input"
+            :placeholder="placeholder"
+            autocomplete="off"
+            @keydown.enter="doSearch"
+          />
+          <button type="submit" class="search-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        </form>
+
+        <!-- Engine tabs -->
+        <div class="search-engine-tabs">
+          <button
+            v-for="e in currentEngines" :key="e.id"
+            class="search-engine-tab"
+            :class="{ active: activeEngine === e.id }"
+            @click="setEngine(e.id)"
+          >{{ e.label }}</button>
+        </div>
       </div>
 
-      <!-- Search input -->
-      <form class="search-form" @submit.prevent="doSearch">
-        <input
-          v-model="keyword"
-          type="text"
-          class="search-input"
-          :placeholder="placeholder"
-          autocomplete="off"
-          @keydown.enter="doSearch"
-        />
-        <button type="submit" class="search-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </button>
-      </form>
-
-      <!-- Engine tabs -->
-      <div class="search-engine-tabs">
-        <button
-          v-for="e in currentEngines" :key="e.id"
-          class="search-engine-tab"
-          :class="{ active: activeEngine === e.id }"
-          @click="setEngine(e.id)"
-        >{{ e.label }}</button>
+      <!-- Bulletin (inside search-container, outside big-search) -->
+      <div class="bulletin-bar">
+        <span class="bulletin-icon">&#128227;</span>
+        <span class="bulletin-text">{{ siteName }} 欢迎使用，速按 CTRL+D 收藏本站</span>
       </div>
-    </div>
-
-    <!-- Bulletin -->
-    <div class="bulletin-bar">
-      <span class="bulletin-icon">&#128227;</span>
-      <span class="bulletin-text">{{ siteName }} 欢迎使用，速按 CTRL+D 收藏本站</span>
     </div>
   </div>
 </template>
