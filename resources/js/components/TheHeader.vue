@@ -39,12 +39,39 @@
         </div>
 
         <div class="header-actions">
-          <button class="header-search-btn d-none d-md-flex" @click="scrollToSearch" title="搜索">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
+          <!-- User area -->
+          <div v-if="authStore.initialized" class="tool-group">
+            <template v-if="authStore.isAuthenticated">
+              <div class="user-avatar" @click.stop="showUserMenu = !showUserMenu">
+                {{ authStore.userName ? authStore.userName.charAt(0).toUpperCase() : 'U' }}
+              </div>
+              <Transition name="dropdown">
+                <div v-if="showUserMenu" class="user-dropdown">
+                  <div class="user-dropdown-header">{{ authStore.userName }}</div>
+                  <router-link to="/favorites" class="user-dropdown-item" @click="showUserMenu = false">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    我的收藏
+                  </router-link>
+                  <router-link to="/settings" class="user-dropdown-item" @click="showUserMenu = false">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    布局设置
+                  </router-link>
+                  <div class="user-dropdown-divider"></div>
+                  <div class="user-dropdown-item" @click="logout">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    退出登录
+                  </div>
+                </div>
+              </Transition>
+            </template>
+            <template v-else>
+              <button class="header-link" @click="openLogin" style="border:none;background:none;cursor:pointer">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span style="margin-left:4px">登录</span>
+              </button>
+            </template>
+          </div>
+
           <button class="mobile-menu-btn d-md-none" @click="$emit('toggle-mobile-menu')" aria-label="菜单">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -60,11 +87,16 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { toolGroups } from '../config/tools';
+import { useAuthStore } from '../stores/auth';
 
 defineEmits(['toggle-mobile-menu']);
 
+const router = useRouter();
+const authStore = useAuthStore();
 const activeTool = ref(null);
+const showUserMenu = ref(false);
 let closeTimer = null;
 
 function openTool(label) {
@@ -78,33 +110,21 @@ function scheduleClose() {
   }, 150);
 }
 
-function scrollToSearch() {
-  const el = document.querySelector('.search-input');
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.focus();
-  }
+function openLogin() {
+  router.push({ query: { login: 'true' } });
+}
+
+function logout() {
+  showUserMenu.value = false;
+  authStore.logout();
 }
 </script>
 
 <style scoped>
-.header-search-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: none;
-  border: none;
-  cursor: pointer;
+.header-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--muted-color2);
-  transition: all 0.2s;
-}
-
-.header-search-btn:hover {
-  background: rgba(0,0,0,0.04);
-  color: var(--theme-color);
+  gap: 4px;
 }
 
 .quick-tools {

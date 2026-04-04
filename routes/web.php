@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
+use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\UserLayoutController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\Admin\AuthController;
@@ -32,6 +35,21 @@ Route::post('/api/click', [SiteController::class, 'click'])->middleware('throttl
 Route::get('/api/search', [SiteController::class, 'search'])->middleware('throttle:60,1')->name('api.search');
 Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middleware('throttle:60,1')->name('api.categories');
 
+// Auth API
+Route::get('/api/user', [ApiAuthController::class, 'me'])->name('api.user');
+Route::post('/api/register', [ApiAuthController::class, 'register'])->middleware('throttle:3,1')->name('api.register');
+Route::post('/api/login', [ApiAuthController::class, 'login'])->middleware('throttle:5,1')->name('api.login');
+Route::post('/api/logout', [ApiAuthController::class, 'logout'])->name('api.logout');
+
+// User features API (auth required)
+Route::middleware('auth')->group(function () {
+    Route::get('/api/user/favorites', [FavoriteController::class, 'index'])->name('api.favorites.index');
+    Route::post('/api/user/favorites', [FavoriteController::class, 'store'])->name('api.favorites.store');
+    Route::delete('/api/user/favorites/{site_id}', [FavoriteController::class, 'destroy'])->name('api.favorites.destroy');
+    Route::get('/api/user/layout', [UserLayoutController::class, 'show'])->name('api.layout.show');
+    Route::put('/api/user/layout', [UserLayoutController::class, 'update'])->name('api.layout.update');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Admin Auth
@@ -48,7 +66,7 @@ Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.log
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('admin')->middleware('auth')->group(function () {
+Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 

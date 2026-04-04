@@ -1,5 +1,8 @@
 <template>
   <div class="search-banner">
+    <div class="banner-orb banner-orb-1"></div>
+    <div class="banner-orb banner-orb-2"></div>
+    <div class="banner-orb banner-orb-3"></div>
     <div class="search-container">
       <!-- Inner search box (centered, constrained width) -->
       <div class="big-search">

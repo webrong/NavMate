@@ -304,6 +304,65 @@ a { color: inherit; text-decoration: none; }
     flex-direction: column;
     justify-content: center;
     position: relative;
+    overflow: hidden;
+}
+
+/* Floating light orbs */
+.banner-orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+    filter: blur(40px);
+}
+
+.banner-orb-1 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, transparent 70%);
+    top: -15%;
+    left: 5%;
+    animation: orb-float-1 18s ease-in-out infinite;
+}
+
+.banner-orb-2 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,200,100,0.5) 0%, transparent 70%);
+    top: 30%;
+    right: -5%;
+    animation: orb-float-2 22s ease-in-out infinite;
+}
+
+.banner-orb-3 {
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(150,220,255,0.55) 0%, transparent 70%);
+    bottom: -20%;
+    left: 40%;
+    animation: orb-float-3 20s ease-in-out infinite;
+}
+
+@keyframes orb-float-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(80px, -30px) scale(1.1); }
+    50% { transform: translate(-40px, 50px) scale(0.9); }
+    75% { transform: translate(60px, 20px) scale(1.05); }
+}
+
+@keyframes orb-float-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(-60px, 40px) scale(1.15); }
+    50% { transform: translate(50px, -50px) scale(0.95); }
+    75% { transform: translate(-30px, -20px) scale(1.1); }
+}
+
+@keyframes orb-float-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(40px, 60px) scale(0.9); }
+    50% { transform: translate(-70px, -20px) scale(1.1); }
+    75% { transform: translate(30px, -40px) scale(1); }
 }
 
 .search-banner::after {
@@ -877,4 +936,225 @@ a { color: inherit; text-decoration: none; }
     .site-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+}
+
+/* ===== Auth Modal ===== */
+.auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.auth-modal {
+    background: var(--main-bg-color);
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 400px;
+    margin: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    position: relative;
+}
+
+.auth-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--muted-color);
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+}
+
+.auth-modal-close:hover {
+    color: var(--main-color);
+}
+
+.auth-modal-title {
+    margin: 0 0 24px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--main-color);
+}
+
+.auth-field {
+    margin-bottom: 16px;
+}
+
+.auth-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted-color2);
+    margin-bottom: 6px;
+}
+
+.auth-field input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--main-color);
+    background: var(--main-bg-color);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.auth-field input:focus {
+    border-color: var(--theme-color);
+}
+
+.auth-error {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.auth-submit {
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: var(--theme-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.auth-submit:hover:not(:disabled) {
+    background: var(--hover-color);
+}
+
+.auth-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted-color);
+}
+
+.auth-switch a {
+    color: var(--theme-color);
+    font-weight: 500;
+}
+
+/* User avatar & dropdown */
+.user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--theme-color);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.user-avatar:hover {
+    transform: scale(1.08);
+}
+
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    min-width: 160px;
+    background: var(--main-bg-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--main-shadow);
+    border: 1px solid rgba(0,0,0,0.06);
+    padding: 6px;
+    z-index: 1001;
+}
+
+.user-dropdown-header {
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--main-color);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    margin-bottom: 4px;
+}
+
+.user-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--main-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.user-dropdown-item:hover {
+    background: rgba(0,0,0,0.04);
+    color: var(--theme-color);
+}
+
+.user-dropdown-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.06);
+    margin: 4px 0;
+}
+
+/* Favorite button */
+.site-fav {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--muted-color);
+    opacity: 0;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.site-card:hover .site-fav {
+    opacity: 0.6;
+}
+
+.site-fav:hover {
+    opacity: 1 !important;
+    color: #ef4444;
+}
+
+.site-fav.active {
+    opacity: 1;
+    color: #ef4444;
 }
