@@ -528,4 +528,7 @@ UpdateLog ─── 更新日志
 
 ## 许可证
 
-MIT License
+[GPL 3.0](LICENSE) © 2026 NavMate
+
+> NavMate 是开源免费项目，如果你是从任何渠道付费获取的，请要求退款。
+> 官方获取地址：https://github.com/webrong/NavMate
