@@ -1,0 +1,595 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\UpdateLog;
+use Illuminate\Support\Facades\Http;
+use ZipArchive;
+
+class UpdateService
+{
+    protected string $repo;
+    protected ?string $customSource;
+
+    public function __construct()
+    {
+        $this->repo = config('services.update.github_repo', '');
+        $this->customSource = config('services.update.custom_source');
+    }
+
+    /**
+     * Get the currently installed version
+     */
+    public function getCurrentVersion(): string
+    {
+        $path = storage_path('app/installed');
+        if (file_exists($path)) {
+            $data = json_decode(file_get_contents($path), true);
+            return $data['version'] ?? '1.0.0';
+        }
+        return '1.0.0';
+    }
+
+    /**
+     * Update the installed version in the marker file
+     */
+    public function setCurrentVersion(string $version): void
+    {
+        $path = storage_path('app/installed');
+        $data = file_exists($path) ? json_decode(file_get_contents($path), true) : [];
+        $data['version'] = $version;
+        $data['updated_at'] = now()->toIso8601String();
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * Check for available updates
+     */
+    public function checkForUpdate(): array
+    {
+        try {
+            $currentVersion = $this->getCurrentVersion();
+
+            if ($this->customSource) {
+                return $this->checkCustomSource($currentVersion);
+            }
+
+            if (empty($this->repo)) {
+                return [
+                    'has_update' => false,
+                    'current_version' => $currentVersion,
+                    'error' => '未配置更新源（UPDATE_GITHUB_REPO）',
+                ];
+            }
+
+            return $this->checkGitHub($currentVersion);
+        } catch (\Throwable $e) {
+            return [
+                'has_update' => false,
+                'current_version' => $this->getCurrentVersion(),
+                'error' => '检查更新失败: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Check GitHub Releases API
+     */
+    protected function checkGitHub(string $currentVersion): array
+    {
+        $response = Http::timeout(10)
+            ->withHeaders(['Accept' => 'application/vnd.github+json'])
+            ->get("https://api.github.com/repos/{$this->repo}/releases/latest");
+
+        if (!$response->successful()) {
+            return [
+                'has_update' => false,
+                'current_version' => $currentVersion,
+                'error' => 'GitHub API 请求失败: ' . $response->status(),
+            ];
+        }
+
+        $release = $response->json();
+        $latestVersion = ltrim($release['tag_name'] ?? '', 'v');
+        $hasUpdate = version_compare($currentVersion, $latestVersion, '<');
+
+        // Find the release asset (zip)
+        $downloadUrl = null;
+        foreach ($release['assets'] ?? [] as $asset) {
+            if (str_ends_with($asset['name'], '.zip')) {
+                $downloadUrl = $asset['browser_download_url'];
+                break;
+            }
+        }
+
+        return [
+            'has_update' => $hasUpdate,
+            'current_version' => $currentVersion,
+            'latest_version' => $latestVersion,
+            'changelog' => $release['body'] ?? '',
+            'download_url' => $downloadUrl,
+            'release_url' => $release['html_url'] ?? '',
+            'published_at' => $release['published_at'] ?? '',
+        ];
+    }
+
+    /**
+     * Check custom update source
+     */
+    protected function checkCustomSource(string $currentVersion): array
+    {
+        $scheme = parse_url($this->customSource, PHP_URL_SCHEME);
+        if (!in_array($scheme, ['https', 'http'], true)) {
+            return [
+                'has_update' => false,
+                'current_version' => $currentVersion,
+                'error' => '更新源 URL 协议无效，仅支持 http/https',
+            ];
+        }
+
+        $response = Http::timeout(10)->get($this->customSource);
+
+        if (!$response->successful()) {
+            return [
+                'has_update' => false,
+                'current_version' => $currentVersion,
+                'error' => '更新源请求失败: ' . $response->status(),
+            ];
+        }
+
+        $data = $response->json();
+        $latestVersion = ltrim($data['version'] ?? '', 'v');
+        $hasUpdate = version_compare($currentVersion, $latestVersion, '<');
+
+        return [
+            'has_update' => $hasUpdate,
+            'current_version' => $currentVersion,
+            'latest_version' => $latestVersion,
+            'changelog' => $data['changelog'] ?? $data['description'] ?? '',
+            'download_url' => $data['download_url'] ?? $data['archive'] ?? '',
+            'published_at' => $data['published_at'] ?? '',
+        ];
+    }
+
+    /**
+     * Execute the update process
+     */
+    public function update(): array
+    {
+        $lockFile = storage_path('framework/update.lock');
+        $lockHandle = fopen($lockFile, 'w+');
+        if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+            if ($lockHandle) fclose($lockHandle);
+            return [
+                'success' => false,
+                'message' => '升级正在进行中，请稍后再试',
+            ];
+        }
+
+        try {
+            $result = $this->doUpdate();
+        } finally {
+            flock($lockHandle, LOCK_UN);
+            fclose($lockHandle);
+            @unlink($lockFile);
+        }
+
+        return $result;
+    }
+
+    protected function doUpdate(): array
+    {
+        $currentVersion = $this->getCurrentVersion();
+        $log = '';
+        $backupPath = null;
+
+        try {
+            // 1. Check for update
+            $log .= "[1/9] 检查更新...\n";
+            $updateInfo = $this->checkForUpdate();
+
+            if (!empty($updateInfo['error'])) {
+                throw new \RuntimeException($updateInfo['error']);
+            }
+
+            if (empty($updateInfo['download_url'])) {
+                throw new \RuntimeException('未找到可下载的发布包');
+            }
+
+            $targetVersion = $updateInfo['latest_version'];
+            $downloadUrl = $updateInfo['download_url'];
+
+            // Validate download URL scheme
+            if (!str_starts_with($downloadUrl, 'https://') && !str_starts_with($downloadUrl, 'http://')) {
+                throw new \RuntimeException('下载地址协议无效');
+            }
+
+            // 2. Enable maintenance mode (direct file write, no Artisan::call)
+            $log .= "[2/9] 开启维护模式...\n";
+            $this->enableMaintenanceMode();
+
+            // 3. Create backup
+            $log .= "[3/9] 备份当前文件...\n";
+            $backupPath = $this->createBackup($currentVersion);
+
+            // 4. Backup database
+            $log .= "[4/9] 备份数据库...\n";
+            $this->backupDatabase();
+
+            // 5. Download release
+            $log .= "[5/9] 下载新版本 {$targetVersion}...\n";
+            $zipPath = $this->downloadRelease($downloadUrl);
+
+            // 6. Extract and replace
+            $log .= "[6/9] 解压并替换文件...\n";
+            $this->extractAndReplace($zipPath);
+
+            // 7. Update version
+            $log .= "[7/9] 更新版本号...\n";
+            $this->setCurrentVersion($targetVersion);
+
+            // 8. Run migrations (via Migrator, no Artisan::call)
+            $log .= "[8/9] 运行数据库迁移...\n";
+            $this->runMigrations();
+
+            // 9. Clear cache and disable maintenance mode
+            $log .= "[9/9] 清除缓存并关闭维护模式...\n";
+            $this->clearCache();
+            $this->disableMaintenanceMode();
+
+            // Clean up
+            $this->cleanup($zipPath);
+
+            // Log success
+            UpdateLog::create([
+                'from_version' => $currentVersion,
+                'to_version' => $targetVersion,
+                'status' => 'success',
+                'log' => $log,
+            ]);
+
+            return [
+                'success' => true,
+                'message' => "升级成功！{$currentVersion} → {$targetVersion}",
+                'from_version' => $currentVersion,
+                'to_version' => $targetVersion,
+            ];
+        } catch (\Throwable $e) {
+            $log .= "\n错误: " . $e->getMessage() . "\n";
+
+            // Try to restore from backup
+            if ($backupPath && file_exists($backupPath)) {
+                $log .= "正在从备份恢复...\n";
+                try {
+                    $this->restoreBackup($backupPath);
+                    $log .= "已从备份恢复\n";
+                } catch (\Throwable $restoreError) {
+                    $log .= "备份恢复失败: " . $restoreError->getMessage() . "\n";
+                }
+            }
+
+            // Ensure maintenance mode is off
+            try {
+                $this->disableMaintenanceMode();
+            } catch (\Throwable) {}
+
+            // Log failure
+            UpdateLog::create([
+                'from_version' => $currentVersion,
+                'to_version' => $updateInfo['latest_version'] ?? 'unknown',
+                'status' => 'failed',
+                'log' => $log,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => '升级失败: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Enable maintenance mode (direct file write, no Artisan::call)
+     */
+    protected function enableMaintenanceMode(): void
+    {
+        $payload = json_encode([
+            'retry' => 60,
+            'refresh' => 5,
+            'secret' => sha1(config('app.key')),
+        ]);
+        file_put_contents(storage_path('framework/down'), $payload);
+    }
+
+    /**
+     * Disable maintenance mode
+     */
+    protected function disableMaintenanceMode(): void
+    {
+        $path = storage_path('framework/down');
+        if (file_exists($path)) {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * Run migrations via Laravel Migrator (no Artisan::call)
+     */
+    protected function runMigrations(): void
+    {
+        $migrator = app('migrator');
+        $migrator->setConnection(config('database.default'));
+
+        if (!$migrator->repositoryExists()) {
+            $migrator->getRepository()->createRepository();
+        }
+
+        $migrator->run([database_path('migrations')], [
+            'pretend' => false,
+            'step' => false,
+        ]);
+    }
+
+    /**
+     * Clear compiled cache files
+     */
+    protected function clearCache(): void
+    {
+        $viewPath = storage_path('framework/views');
+        if (is_dir($viewPath)) {
+            array_map('unlink', glob($viewPath . '/*'));
+        }
+
+        foreach (['config.php', 'routes-v7.php', 'events.php', 'services.php'] as $file) {
+            $path = base_path('bootstrap/cache/' . $file);
+            if (file_exists($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /**
+     * Backup database using mysqldump if available
+     */
+    protected function backupDatabase(): ?string
+    {
+        $backupDir = storage_path('app/backups');
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+
+        $mysqlDump = exec(DIRECTORY_SEPARATOR === '\\' ? 'where mysqldump 2>NUL' : 'which mysqldump 2>/dev/null');
+        if (empty($mysqlDump)) {
+            return null;
+        }
+
+        $dbName = config('database.connections.mysql.database');
+        $dbUser = config('database.connections.mysql.username');
+        $dbPass = config('database.connections.mysql.password');
+        $dbHost = config('database.connections.mysql.host', '127.0.0.1');
+        $dbPort = config('database.connections.mysql.port', 3306);
+
+        $backupFile = $backupDir . '/db-' . date('YmdHis') . '.sql';
+        $command = sprintf(
+            '%s -h%s -P%s -u%s %s %s > %s 2>/dev/null',
+            escapeshellcmd(trim($mysqlDump)),
+            escapeshellarg($dbHost),
+            escapeshellarg((string) $dbPort),
+            escapeshellarg($dbUser),
+            $dbPass ? '-p' . escapeshellarg($dbPass) : '',
+            escapeshellarg($dbName),
+            escapeshellarg($backupFile)
+        );
+
+        exec($command, $output, $returnCode);
+        if ($returnCode === 0 && file_exists($backupFile)) {
+            return $backupFile;
+        }
+        @unlink($backupFile);
+        return null;
+    }
+
+    /**
+     * Create a backup of the current application files
+     */
+    protected function createBackup(string $version): string
+    {
+        $backupDir = storage_path('app/backups');
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+
+        $backupPath = $backupDir . "/pre-{$version}-" . date('YmdHis') . '.zip';
+        $zip = new ZipArchive();
+
+        if ($zip->open($backupPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('无法创建备份文件');
+        }
+
+        $base = base_path();
+        $exclude = ['vendor', 'node_modules', '.git', 'storage/app/backups', 'storage/framework/sessions', 'storage/framework/views'];
+
+        $this->addDirectoryToZip($zip, $base, '', $exclude);
+        $zip->close();
+
+        return $backupPath;
+    }
+
+    /**
+     * Recursively add directory to zip archive
+     */
+    protected function addDirectoryToZip(ZipArchive $zip, string $basePath, string $prefix, array $exclude): void
+    {
+        $dir = $basePath . ($prefix ? '/' . $prefix : '');
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        $items = scandir($dir);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $relativePath = $prefix ? "{$prefix}/{$item}" : $item;
+
+            // Skip excluded directories
+            foreach ($exclude as $exc) {
+                if (str_starts_with($relativePath, $exc) || $relativePath === $exc) {
+                    continue 2;
+                }
+            }
+
+            $fullPath = "{$basePath}/{$relativePath}";
+            if (is_dir($fullPath)) {
+                $this->addDirectoryToZip($zip, $basePath, $relativePath, $exclude);
+            } else {
+                $zip->addFile($fullPath, $relativePath);
+            }
+        }
+    }
+
+    /**
+     * Download release archive
+     */
+    protected function downloadRelease(string $url): string
+    {
+        $tmpDir = storage_path('app/tmp');
+        if (!is_dir($tmpDir)) {
+            mkdir($tmpDir, 0755, true);
+        }
+
+        $zipPath = $tmpDir . '/update-' . time() . '.zip';
+        $response = Http::timeout(300)->sink($zipPath)->get($url);
+
+        if (!$response->successful()) {
+            @unlink($zipPath);
+            throw new \RuntimeException('下载发布包失败: HTTP ' . $response->status());
+        }
+
+        return $zipPath;
+    }
+
+    /**
+     * Extract archive and replace application files
+     */
+    protected function extractAndReplace(string $zipPath): void
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath) !== true) {
+            throw new \RuntimeException('无法打开下载的压缩包');
+        }
+
+        // Validate ZIP contents: block path traversal
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            // Block path traversal
+            if (str_contains($name, '..')) {
+                $zip->close();
+                throw new \RuntimeException('压缩包包含非法路径: ' . $name);
+            }
+        }
+        $zip->close();
+
+        // Re-open and extract
+        $zip = new ZipArchive();
+        $zip->open($zipPath);
+        $tmpDir = storage_path('app/tmp/extract-' . time());
+        mkdir($tmpDir, 0755, true);
+        $zip->extractTo($tmpDir);
+        $zip->close();
+
+        // Find the actual source directory (may be wrapped in a root folder)
+        $sourceDir = $tmpDir;
+        $entries = scandir($tmpDir);
+        $dirs = array_values(array_filter($entries, fn ($e) => $e !== '.' && $e !== '..' && is_dir("{$tmpDir}/{$e}")));
+        if (count($dirs) === 1) {
+            $sourceDir = "{$tmpDir}/{$dirs[0]}";
+        }
+
+        // Files/directories to preserve
+        $preserve = ['.env', 'storage', 'public/uploads', 'node_modules'];
+
+        $this->recursiveCopy($sourceDir, base_path(), $preserve);
+
+        // Clean up
+        $this->recursiveDelete($tmpDir);
+    }
+
+    /**
+     * Recursively copy files from source to destination, skipping preserved paths
+     */
+    protected function recursiveCopy(string $src, string $dst, array $preserve): void
+    {
+        $dir = opendir($src);
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+
+            // Skip preserved items
+            if (in_array($file, $preserve, true)) {
+                continue;
+            }
+
+            $srcPath = "{$src}/{$file}";
+            $dstPath = "{$dst}/{$file}";
+
+            if (is_dir($srcPath)) {
+                if (!is_dir($dstPath)) {
+                    mkdir($dstPath, 0755, true);
+                }
+                $this->recursiveCopy($srcPath, $dstPath, []);
+            } else {
+                copy($srcPath, $dstPath);
+            }
+        }
+        closedir($dir);
+    }
+
+    /**
+     * Restore from backup (preserving .env and storage/)
+     */
+    protected function restoreBackup(string $backupPath): void
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($backupPath) !== true) {
+            throw new \RuntimeException('无法打开备份文件');
+        }
+
+        // Extract to temp dir first, then selectively copy back
+        $tmpDir = storage_path('app/tmp/restore-' . time());
+        mkdir($tmpDir, 0755, true);
+        $zip->extractTo($tmpDir);
+        $zip->close();
+
+        $this->recursiveCopy($tmpDir, base_path(), ['.env', 'storage']);
+        $this->recursiveDelete($tmpDir);
+    }
+
+    /**
+     * Clean up temporary files
+     */
+    protected function cleanup(string $zipPath): void
+    {
+        @unlink($zipPath);
+    }
+
+    /**
+     * Recursively delete a directory
+     */
+    protected function recursiveDelete(string $path): void
+    {
+        if (is_dir($path)) {
+            $items = scandir($path);
+            foreach ($items as $item) {
+                if ($item !== '.' && $item !== '..') {
+                    $this->recursiveDelete("{$path}/{$item}");
+                }
+            }
+            rmdir($path);
+        } elseif (file_exists($path)) {
+            unlink($path);
+        }
+    }
+}

@@ -17,7 +17,9 @@
 /public/hot
 /public/storage
 /storage/*.key
+/storage/*.pem
 /storage/pail
+/storage/app/installed
 /vendor
 _ide_helper.php
 Homestead.json

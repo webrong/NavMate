@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+
+class Setting extends Model
+{
+    protected $fillable = ['key', 'value'];
+
+    protected $casts = [];
+
+    private static string $cacheKey = 'settings:all';
+
+    /**
+     * Get a setting value by key (cached)
+     */
+    public static function get(string $key, ?string $default = null): ?string
+    {
+        return static::allCached()->get($key, $default);
+    }
+
+    /**
+     * Set a setting value
+     */
+    public static function set(string $key, ?string $value): void
+    {
+        static::updateOrCreate(
+            ['key' => $key],
+            ['value' => $value],
+        );
+        static::flushCache();
+    }
+
+    /**
+     * Set multiple settings at once
+     */
+    public static function setMany(array $settings): void
+    {
+        foreach ($settings as $key => $value) {
+            static::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value],
+            );
+        }
+        static::flushCache();
+    }
+
+    /**
+     * Get all settings as a key-value collection (cached)
+     */
+    public static function allCached(): \Illuminate\Support\Collection
+    {
+        try {
+            $cached = Cache::get(static::$cacheKey);
+            if ($cached instanceof \Illuminate\Support\Collection) {
+                return $cached;
+            }
+        } catch (\Throwable) {
+            // Cache corruption — clear and re-fetch
+        }
+
+        $result = static::query()->pluck('value', 'key');
+        Cache::put(static::$cacheKey, $result, 3600);
+        return $result;
+    }
+
+    /**
+     * Flush the settings cache
+     */
+    public static function flushCache(): void
+    {
+        Cache::forget(static::$cacheKey);
+    }
+}

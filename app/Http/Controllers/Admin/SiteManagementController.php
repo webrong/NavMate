@@ -9,22 +9,16 @@ use App\Services\UrlFetcherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Cache;
 
 class SiteManagementController extends Controller
 {
-    public function index(): View
-    {
-        $categories = Category::active()->ordered()->get();
-        return view('admin.sites.index', compact('categories'));
-    }
-
     public function data(Request $request): JsonResource
     {
         $query = Site::with('category');
 
         if ($request->filled('keyword')) {
-            $keyword = $request->input('keyword');
+            $keyword = str_replace(['%', '_'], ['\\%', '\\_'], $request->input('keyword'));
             $query->where(function ($q) use ($keyword) {
                 $q->where('title', 'like', "%{$keyword}%")
                     ->orWhere('url', 'like', "%{$keyword}%");
@@ -65,6 +59,7 @@ class SiteManagementController extends Controller
         $data['is_active'] = $data['is_active'] ?? true;
 
         $site = Site::create($data);
+        $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '添加成功', 'data' => $site]);
     }
@@ -83,6 +78,7 @@ class SiteManagementController extends Controller
         ]);
 
         $site->update($data);
+        $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '更新成功']);
     }
@@ -90,7 +86,15 @@ class SiteManagementController extends Controller
     public function destroy(Site $site): JsonResponse
     {
         $site->delete();
+        $this->clearDashboardCache();
         return response()->json(['code' => 0, 'msg' => '删除成功']);
+    }
+
+    private function clearDashboardCache(): void
+    {
+        Cache::forget('dashboard:stats');
+        Cache::forget('dashboard:recent');
+        Cache::forget('dashboard:top');
     }
 
     public function fetchUrl(Request $request): JsonResponse
@@ -98,5 +102,11 @@ class SiteManagementController extends Controller
         $request->validate(['url' => 'required|url|max:2048']);
         $result = app(UrlFetcherService::class)->fetch($request->url);
         return response()->json($result);
+    }
+
+    public function categories(): JsonResponse
+    {
+        $categories = Category::active()->ordered()->get(['id', 'name']);
+        return response()->json(['code' => 0, 'data' => $categories]);
     }
 }

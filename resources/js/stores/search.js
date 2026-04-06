@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import request from '../utils/request';
 
 const SEARCH_GROUPS = {
     search: {
@@ -100,7 +100,7 @@ export const useSearchStore = defineStore('search', {
                 this.filtering = true;
                 this.searchResults = [];
                 try {
-                    const { data } = await axios.get('/api/search', { params: { q: keyword } });
+                    const { data } = await request.get('/api/search', { params: { q: keyword } });
                     this.searchResults = data;
                 } catch (e) {
                     this.searchResults = [];

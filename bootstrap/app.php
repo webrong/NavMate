@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
         ]);
+        $middleware->web([
+            \App\Http\Middleware\RedirectIfNotInstalled::class,
+            \App\Http\Middleware\PrerenderForBots::class,
+            \App\Http\Middleware\CheckMaintenanceMode::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->expectsJson()) {
                 return null;

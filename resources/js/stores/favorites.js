@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import request from '../utils/request';
 
 export const useFavoritesStore = defineStore('favorites', {
     state: () => ({
@@ -8,13 +8,19 @@ export const useFavoritesStore = defineStore('favorites', {
     }),
 
     getters: {
-        isFavorite: (state) => (siteId) => state.ids.includes(siteId),
+        idSet(state) {
+            return new Set(state.ids);
+        },
+        isFavorite: (state) => {
+            const set = new Set(state.ids);
+            return (siteId) => set.has(siteId);
+        },
     },
 
     actions: {
         async fetchFavorites() {
             try {
-                const { data } = await axios.get('/api/user/favorites');
+                const { data } = await request.get('/api/user/favorites');
                 this.ids = data.map((f) => f.site_id);
             } catch {
                 this.ids = [];
@@ -24,17 +30,17 @@ export const useFavoritesStore = defineStore('favorites', {
         },
 
         async toggleFavorite(siteId) {
-            if (this.ids.includes(siteId)) {
+            if (this.idSet.has(siteId)) {
                 this.ids = this.ids.filter((id) => id !== siteId);
                 try {
-                    await axios.delete(`/api/user/favorites/${siteId}`);
+                    await request.delete(`/api/user/favorites/${siteId}`);
                 } catch {
                     this.ids.push(siteId);
                 }
             } else {
                 this.ids.push(siteId);
                 try {
-                    await axios.post('/api/user/favorites', { site_id: siteId });
+                    await request.post('/api/user/favorites', { site_id: siteId });
                 } catch {
                     this.ids = this.ids.filter((id) => id !== siteId);
                 }

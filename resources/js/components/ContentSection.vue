@@ -1,7 +1,10 @@
 <template>
   <div :id="'section-' + category.id" class="content-section">
     <div class="section-header">
-      <h4 class="section-title">{{ cleanName }}</h4>
+      <h4 class="section-title">
+        <i v-if="category.icon" :class="'io ' + category.icon + ' icon-fw'" style="margin-right: 6px"></i>
+        {{ cleanName }}
+      </h4>
       <ul v-if="tabs.length > 1" class="section-tabs">
         <li
           v-for="(tab, idx) in tabs" :key="tab.id"

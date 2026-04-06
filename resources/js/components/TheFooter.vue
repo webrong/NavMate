@@ -3,34 +3,60 @@
     <div class="footer-inner">
       <div class="footer-grid">
         <div class="footer-brand">
-          <img :src="'/static/image/logo.png'" alt="导航" class="footer-logo" />
-          <p class="footer-desc">{{ siteName }} 上班人必备的职场办公导航网站</p>
+          <img :src="siteSettings.settings.site_logo || '/static/image/logo.png'" alt="导航" class="footer-logo" />
+          <p class="footer-desc">{{ siteSettings.siteName }} 上班人必备的职场办公导航网站</p>
         </div>
         <div class="footer-links-col">
           <div class="footer-links">
-            <a href="#">用户协议</a>
-            <a href="#">免责声明</a>
-            <a href="#">关于本站</a>
-            <a href="#">广告合作</a>
-            <a href="#">收录投稿</a>
-            <a href="#">友链申请</a>
+            <router-link to="/terms">用户协议</router-link>
+            <router-link to="/terms">免责声明</router-link>
+            <router-link to="/about">关于本站</router-link>
+            <router-link to="/about">广告合作</router-link>
+            <router-link to="/about">收录投稿</router-link>
+            <a v-for="link in friendLinks" :key="link.id" :href="link.url" target="_blank" rel="noopener">{{ link.name }}</a>
           </div>
         </div>
-        <div class="footer-qrcode">
-          <div class="qrcode-box">
-            <img :src="'/static/image/1738680205-qrcode_for_gh_27bdb6e28932_258.jpg'" alt="关注公众号" />
+        <div class="footer-qrcodes" v-if="siteSettings.settings.qrcode_1_image || siteSettings.settings.qrcode_2_image">
+          <div class="footer-qrcode" v-if="siteSettings.settings.qrcode_1_image">
+            <div class="qrcode-box">
+              <img :src="siteSettings.settings.qrcode_1_image" :alt="siteSettings.settings.qrcode_1_label || '二维码'" />
+            </div>
+            <span class="qrcode-label">{{ siteSettings.settings.qrcode_1_label || '扫码关注' }}</span>
           </div>
-          <span class="qrcode-label">关注公众号</span>
+          <div class="footer-qrcode" v-if="siteSettings.settings.qrcode_2_image">
+            <div class="qrcode-box">
+              <img :src="siteSettings.settings.qrcode_2_image" :alt="siteSettings.settings.qrcode_2_label || '二维码'" />
+            </div>
+            <span class="qrcode-label">{{ siteSettings.settings.qrcode_2_label || '扫码关注' }}</span>
+          </div>
         </div>
       </div>
       <div class="footer-copyright">
-        Copyright &copy; 2026 {{ siteName }}
+        <div v-if="siteSettings.settings.footer_text" v-html="sanitizedFooter"></div>
+        <template v-else>Copyright &copy; {{ new Date().getFullYear() }} {{ siteSettings.siteName }}</template>
+        <template v-if="siteSettings.settings.icp_number"> | <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color: inherit">{{ siteSettings.settings.icp_number }}</a></template>
       </div>
     </div>
   </footer>
 </template>
 
 <script setup>
-import { inject } from 'vue';
-const siteName = inject('siteName', '导航');
+import { ref, onMounted, computed } from 'vue';
+import { useSiteSettingsStore } from '../stores/siteSettings';
+import request from '../utils/request';
+import { sanitizeHtml } from '../composables/useSanitize';
+
+const siteSettings = useSiteSettingsStore();
+const friendLinks = ref([]);
+
+const sanitizedFooter = computed(() => sanitizeHtml(siteSettings.settings.footer_text));
+
+onMounted(async () => {
+  try {
+    const { data } = await request.get('/api/friend-links');
+    friendLinks.value = data || [];
+  } catch {
+    // ignore
+  }
+});
 </script>

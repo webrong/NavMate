@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\BookmarkParserService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class BookmarkImportController extends Controller
@@ -12,14 +14,6 @@ class BookmarkImportController extends Controller
     public function __construct(
         private BookmarkParserService $parser
     ) {}
-
-    /**
-     * 显示书签导入页面
-     */
-    public function index()
-    {
-        return view('admin.bookmarks.index');
-    }
 
     /**
      * 预览书签文件内容
@@ -43,12 +37,13 @@ class BookmarkImportController extends Controller
             $html = $request->file('bookmark_file')->getContents();
             $result = $this->parser->preview($html);
 
-            // 缓存解析结果到session
-            session(['bookmark_preview' => $html]);
+            // Cache parsed result using a unique key (avoid bloating session)
+            $cacheKey = 'bookmark_preview:' . $request->session()->getId();
+            Cache::put($cacheKey, $html, 1800); // 30 min TTL
 
             return response()->json($result);
         } catch (\Exception $e) {
-            return response()->json(['error' => '解析失败: ' . $e->getMessage()], 500);
+            return response()->json(['error' => '书签文件解析失败，请检查文件格式'], 500);
         }
     }
 
@@ -57,7 +52,8 @@ class BookmarkImportController extends Controller
      */
     public function import(Request $request)
     {
-        $html = session('bookmark_preview');
+        $cacheKey = 'bookmark_preview:' . $request->session()->getId();
+        $html = Cache::get($cacheKey);
 
         if (!$html) {
             return response()->json(['error' => '请先上传并预览书签文件'], 422);
@@ -69,13 +65,16 @@ class BookmarkImportController extends Controller
         ]);
 
         try {
-            $result = $this->parser->import($html, [
-                'skip_duplicate' => $request->boolean('skip_duplicate', true),
-                'parent_category_id' => $request->input('parent_category_id'),
-            ]);
+            $result = DB::transaction(function () use ($html, $request) {
+                return $this->parser->import($html, [
+                    'skip_duplicate' => $request->boolean('skip_duplicate', true),
+                    'parent_category_id' => $request->input('parent_category_id'),
+                ]);
+            });
 
-            // 清除session缓存
-            session()->forget('bookmark_preview');
+            // Clear cache after successful import
+            Cache::forget($cacheKey);
+            $this->clearDashboardCache();
 
             return response()->json([
                 'success' => true,
@@ -88,7 +87,14 @@ class BookmarkImportController extends Controller
                 'result' => $result,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => '导入失败: ' . $e->getMessage()], 500);
+            return response()->json(['error' => '导入失败，请重试'], 500);
         }
+    }
+
+    private function clearDashboardCache(): void
+    {
+        Cache::forget('dashboard:stats');
+        Cache::forget('dashboard:recent');
+        Cache::forget('dashboard:top');
     }
 }

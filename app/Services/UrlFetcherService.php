@@ -13,6 +13,12 @@ class UrlFetcherService
             return ['title' => null, 'favicon_url' => null];
         }
 
+        // SSRF protection: block private/internal IP ranges
+        if ($this->isInternalUrl($url)) {
+            Log::warning('UrlFetcher blocked internal URL', ['url' => $url]);
+            return ['title' => null, 'favicon_url' => null];
+        }
+
         try {
             $response = Http::timeout(10)
                 ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
@@ -57,14 +63,38 @@ class UrlFetcherService
             return $this->resolveUrl($baseUrl, $matches[1]);
         }
 
-        // Fallback: use Google favicon API (works in China via gstatic.cn)
+        // Fallback: try site's own /favicon.ico
         $parsed = parse_url($baseUrl);
+        $scheme = $parsed['scheme'] ?? 'https';
         $host = $parsed['host'] ?? '';
         if ($host) {
-            return 'https://t2.gstatic.cn/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=https://' . $host;
+            return $scheme . '://' . $host . '/favicon.ico';
         }
 
         return null;
+    }
+
+    private function isInternalUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!$host) {
+            return true;
+        }
+
+        // Block hostnames that resolve to internal IPs
+        $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
+        if (in_array(strtolower($host), $blockedHosts, true)) {
+            return true;
+        }
+
+        // Resolve domain to IP and check if private
+        $ip = gethostbyname($host);
+        if ($ip === $host) {
+            // Could not resolve — allow through, let HTTP client handle it
+            return false;
+        }
+
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     private function resolveUrl(string $base, string $relative): string

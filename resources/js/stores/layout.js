@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import request from '../utils/request';
 
 export const useLayoutStore = defineStore('layout', {
     state: () => ({
@@ -10,7 +10,7 @@ export const useLayoutStore = defineStore('layout', {
     actions: {
         async fetchLayout() {
             try {
-                const { data } = await axios.get('/api/user/layout');
+                const { data } = await request.get('/api/user/layout');
                 this.data = data;
             } catch {
                 this.data = [];
@@ -21,7 +21,7 @@ export const useLayoutStore = defineStore('layout', {
 
         async saveLayout(layoutData) {
             try {
-                await axios.put('/api/user/layout', { layout_data: layoutData });
+                await request.put('/api/user/layout', { layout_data: layoutData });
                 this.data = layoutData;
             } catch {
                 // ignore

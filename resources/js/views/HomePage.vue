@@ -23,9 +23,26 @@
 
       <!-- Normal categories -->
       <template v-else>
-        <div v-if="loading" class="loading-state">加载中...</div>
+        <template v-if="loading">
+          <div v-for="n in 3" :key="'sk-'+n" class="skeleton-section">
+            <div class="skeleton-header">
+              <div class="skeleton-header-line"></div>
+            </div>
+            <div class="skeleton-grid">
+              <div v-for="i in 8" :key="'c-'+i" class="skeleton-card">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-text-group">
+                  <div class="skeleton-text skeleton-text-name"></div>
+                  <div class="skeleton-text skeleton-text-desc"></div>
+                </div>
+                <div class="skeleton-arrow"></div>
+              </div>
+            </div>
+          </div>
+        </template>
         <div v-else-if="error" class="error-state">{{ error }}</div>
         <template v-else>
+          <UserQuickLinks />
           <ContentSection
             v-for="cat in categories" :key="cat.id"
             :category="cat"
@@ -42,6 +59,7 @@ import { useCategoryStore } from '../stores/categories';
 import { useSearchStore } from '../stores/search';
 import ContentSection from '../components/ContentSection.vue';
 import SiteCard from '../components/SiteCard.vue';
+import UserQuickLinks from '../components/UserQuickLinks.vue';
 
 const store = useCategoryStore();
 const searchStore = useSearchStore();

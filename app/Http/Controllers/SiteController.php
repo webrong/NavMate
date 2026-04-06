@@ -54,6 +54,11 @@ class SiteController extends Controller
         $request->validate(['site_id' => 'required|exists:sites,id']);
 
         $site = Site::find($request->site_id);
+
+        if (!$site) {
+            return response()->json(['success' => false], 404);
+        }
+
         $site->increment('clicks');
 
         ClickLog::create([
@@ -69,6 +74,12 @@ class SiteController extends Controller
     public function search(Request $request): JsonResponse
     {
         $q = $request->get('q', '');
+
+        // Limit query length to prevent abuse
+        if (mb_strlen($q) > 200) {
+            $q = mb_substr($q, 0, 200);
+        }
+
         $visitorToken = Cookie::get('visitor_token');
 
         // Escape LIKE wildcards to prevent unintended matching

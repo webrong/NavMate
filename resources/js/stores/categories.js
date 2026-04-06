@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import request from '../utils/request';
 
 export const useCategoryStore = defineStore('categories', {
     state: () => ({
@@ -30,7 +30,7 @@ export const useCategoryStore = defineStore('categories', {
             this.loading = true;
             this.error = null;
             try {
-                const { data } = await axios.get('/api/categories');
+                const { data } = await request.get('/api/categories');
                 this.categories = data;
             } catch (e) {
                 this.error = e.message;

@@ -254,26 +254,36 @@ class BookmarkParserService
         $parentCategoryId = $options['parent_category_id'] ?? null;
         $existingUrls = \App\Models\Site::pluck('url')->flip()->toArray();
 
+        // Pre-calculate next sort_order to avoid repeated MAX() queries
+        $nextSortOrder = (\App\Models\Category::max('sort_order') ?? 0) + 1;
+
         foreach ($flat as $group) {
             if (empty($group['bookmarks'])) continue;
 
             $categoryName = $group['folder'] ?: '未分类书签';
-            $category = \App\Models\Category::where('name', $categoryName)->first();
+
+            // Resolve parent category
+            $catParentId = $parentCategoryId;
+            if ($group['parent_folder']) {
+                $parentCat = \App\Models\Category::where('name', $group['parent_folder'])->first();
+                if ($parentCat) $catParentId = $parentCat->id;
+            }
+
+            // Look for existing category matching name AND parent
+            $categoryQuery = \App\Models\Category::where('name', $categoryName);
+            if ($catParentId) {
+                $categoryQuery->where('parent_id', $catParentId);
+            } else {
+                $categoryQuery->whereNull('parent_id');
+            }
+            $category = $categoryQuery->first();
 
             if (!$category) {
-                $catParentId = $parentCategoryId;
-                if ($group['parent_folder']) {
-                    // Match only the immediate parent folder name (last segment after " / ")
-                    $parentFolderName = $group['folder'] ? $group['folder'] : null;
-                    $parentCat = \App\Models\Category::where('name', $group['parent_folder'])->first();
-                    if ($parentCat) $catParentId = $parentCat->id;
-                }
-
                 $category = \App\Models\Category::create([
                     'name' => $categoryName,
                     'slug' => $this->generateSlug($categoryName),
                     'is_active' => true,
-                    'sort_order' => \App\Models\Category::max('sort_order') + 1,
+                    'sort_order' => $nextSortOrder++,
                     'parent_id' => $catParentId,
                 ]);
                 $imported['categories']++;

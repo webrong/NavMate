@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'update' => [
+        'github_repo' => env('UPDATE_GITHUB_REPO', ''),
+        'custom_source' => env('UPDATE_CUSTOM_SOURCE'),
+    ],
+
 ];

@@ -16,9 +16,12 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
+        "@ant-design/icons-vue": "^7.0.1",
         "@popperjs/core": "^2.11.8",
         "@vitejs/plugin-vue": "^6.0.5",
+        "antdv-next": "^1.1.8",
         "bootstrap": "^5.3.8",
+        "dompurify": "^3.3.3",
         "pinia": "^3.0.4",
         "vue": "^3.5.32",
         "vue-router": "^4.6.4"

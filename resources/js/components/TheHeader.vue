@@ -43,11 +43,16 @@
           <div v-if="authStore.initialized" class="tool-group">
             <template v-if="authStore.isAuthenticated">
               <div class="user-avatar" @click.stop="showUserMenu = !showUserMenu">
-                {{ authStore.userName ? authStore.userName.charAt(0).toUpperCase() : 'U' }}
+                <img v-if="authStore.avatarUrl" :src="authStore.avatarUrl" alt="头像" class="user-avatar-img" />
+                <template v-else>{{ authStore.userName ? authStore.userName.charAt(0).toUpperCase() : 'U' }}</template>
               </div>
               <Transition name="dropdown">
                 <div v-if="showUserMenu" class="user-dropdown">
                   <div class="user-dropdown-header">{{ authStore.userName }}</div>
+                  <router-link to="/profile" class="user-dropdown-item" @click="showUserMenu = false">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    个人资料
+                  </router-link>
                   <router-link to="/favorites" class="user-dropdown-item" @click="showUserMenu = false">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                     我的收藏
@@ -86,15 +91,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { toolGroups } from '../config/tools';
 import { useAuthStore } from '../stores/auth';
+import { useToastStore } from '../stores/toast';
 
 defineEmits(['toggle-mobile-menu']);
 
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToastStore();
 const activeTool = ref(null);
 const showUserMenu = ref(false);
 let closeTimer = null;
@@ -117,7 +124,18 @@ function openLogin() {
 function logout() {
   showUserMenu.value = false;
   authStore.logout();
+  toast.success('已退出登录');
 }
+
+function onGlobalKeydown(e) {
+  if (e.key === 'Escape') {
+    if (activeTool.value) { activeTool.value = null; e.stopPropagation(); }
+    if (showUserMenu.value) { showUserMenu.value = false; e.stopPropagation(); }
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', onGlobalKeydown));
+onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown));
 </script>
 
 <style scoped>
@@ -152,7 +170,7 @@ function logout() {
 
 .tool-trigger:hover,
 .tool-trigger.active {
-  background: rgba(0,0,0,0.04);
+  background: var(--hover-bg);
   color: var(--main-color);
 }
 
@@ -173,7 +191,7 @@ function logout() {
   background: var(--main-bg-color);
   border-radius: 10px;
   box-shadow: 0 8px 24px var(--main-shadow);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid var(--border-color);
   padding: 6px;
   z-index: 1001;
 }
@@ -189,7 +207,7 @@ function logout() {
 }
 
 .tool-dropdown-item:hover {
-  background: rgba(0,0,0,0.04);
+  background: var(--hover-bg);
   color: var(--theme-color);
 }
 
@@ -202,5 +220,12 @@ function logout() {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-4px);
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
 </style>

@@ -9,9 +9,12 @@ class UserLayout extends Model
 {
     protected $fillable = ['user_id', 'layout_data'];
 
-    protected $casts = [
-        'layout_data' => 'array',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'layout_data' => 'array',
+        ];
+    }
 
     public function user(): BelongsTo
     {

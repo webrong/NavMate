@@ -16,7 +16,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import request from '../utils/request';
 import SiteCard from '../components/SiteCard.vue';
 
 const sites = ref([]);
@@ -24,7 +24,7 @@ const loading = ref(true);
 
 onMounted(async () => {
   try {
-    const { data } = await axios.get('/api/user/favorites');
+    const { data } = await request.get('/api/user/favorites');
     sites.value = data.map((f) => f.site || f);
   } catch {
     // ignore
