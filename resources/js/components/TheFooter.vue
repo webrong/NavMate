@@ -3,8 +3,8 @@
     <div class="footer-inner">
       <div class="footer-grid">
         <div class="footer-brand">
-          <img :src="siteSettings.settings.site_logo || '/static/image/logo.png'" alt="导航" class="footer-logo" />
-          <p class="footer-desc">{{ siteSettings.siteName }} 上班人必备的职场办公导航网站</p>
+          <img :src="siteSettings.settings.site_logo || '/static/image/logo.svg'" :alt="siteSettings.siteName" class="footer-logo" />
+          <p class="footer-desc">{{ siteSettings.siteName }}</p>
         </div>
         <div class="footer-links-col">
           <div class="footer-links">

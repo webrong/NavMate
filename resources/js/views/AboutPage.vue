@@ -7,7 +7,7 @@
       <div class="banner-orb banner-orb-3"></div>
       <div class="about-banner-content">
         <h1 class="about-site-name">{{ siteSettings.siteName }}</h1>
-        <p class="about-desc">{{ siteSettings.settings.about_description || '上班人必备的职场办公导航网站' }}</p>
+        <p class="about-desc">{{ siteSettings.settings.about_description || '现代化网址导航系统' }}</p>
         <div class="about-stats">
           <div class="about-stat-item">
             <div class="about-stat-num">{{ stats.categories }}</div>

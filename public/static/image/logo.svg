@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" width="120" height="32">
+  <!-- Compass icon -->
+  <g transform="translate(0, 2)">
+    <circle cx="14" cy="14" r="13" fill="none" stroke="#4F46E5" stroke-width="2"/>
+    <polygon points="14,4 17,14 14,12 11,14" fill="#4F46E5" opacity="0.9"/>
+    <polygon points="14,24 11,14 14,16 17,14" fill="#818CF8"/>
+    <circle cx="14" cy="14" r="2" fill="#4F46E5"/>
+  </g>
+  <!-- Text -->
+  <text x="34" y="22" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="17" font-weight="700" fill="#1E1B4B" letter-spacing="-0.3">Nav</text>
+  <text x="68" y="22" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif" font-size="17" font-weight="700" fill="#4F46E5" letter-spacing="-0.3">Mate</text>
+</svg>

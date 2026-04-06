@@ -7,7 +7,7 @@
         $siteName = $settings['site_name'] ?? config('app.name', 'NavMate');
         $siteDescription = $settings['site_description'] ?? ($siteName . ' - 现代化网址导航系统');
         $siteKeywords = $settings['site_keywords'] ?? ($siteName . ',网址导航,导航站,NavMate');
-        $siteLogo = $settings['site_logo'] ?? asset('static/image/logo.png');
+        $siteLogo = $settings['site_logo'] ?? asset('static/image/logo.svg');
         $siteUrl = config('app.url');
         $currentUrl = $siteUrl . request()->getRequestUri();
     @endphp

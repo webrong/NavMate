@@ -3,7 +3,7 @@
     <nav class="header-nav">
       <div class="header-inner">
         <a href="/" class="logo-link">
-          <img :src="'/static/image/logo.png'" alt="导航" class="logo-img" />
+          <img :src="siteSettings.settings.site_logo || '/static/image/logo.svg'" :alt="siteSettings.siteName" class="logo-img" />
         </a>
         <div class="header-links d-none d-md-flex">
           <a href="/" class="header-link active">
@@ -96,12 +96,14 @@ import { useRouter } from 'vue-router';
 import { toolGroups } from '../config/tools';
 import { useAuthStore } from '../stores/auth';
 import { useToastStore } from '../stores/toast';
+import { useSiteSettingsStore } from '../stores/siteSettings';
 
 defineEmits(['toggle-mobile-menu']);
 
 const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToastStore();
+const siteSettings = useSiteSettingsStore();
 const activeTool = ref(null);
 const showUserMenu = ref(false);
 let closeTimer = null;
