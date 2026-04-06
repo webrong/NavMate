@@ -9,6 +9,11 @@ class SecurityHeaders
 {
     public function handle(Request $request, Closure $next)
     {
+        // Generate a per-request CSP nonce
+        $nonce = base64_encode(random_bytes(16));
+        // Share nonce with Blade views so they can add nonce="{{ $cspNonce }}" to script/style tags
+        \Illuminate\Support\Facades\View::share('cspNonce', $nonce);
+
         $response = $next($request);
 
         // Prevent clickjacking
@@ -23,9 +28,9 @@ class SecurityHeaders
         // Referrer policy
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // Content Security Policy (basic)
+        // Content Security Policy (nonce-based — blocks injected inline scripts)
         $csp = "default-src 'self'; ";
-        $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval'; ";
+        $csp .= "script-src 'self' 'nonce-{$nonce}'; ";
         $csp .= "style-src 'self' 'unsafe-inline'; ";
         $csp .= "img-src 'self' data: https: http:; ";
         $csp .= "font-src 'self' data:; ";

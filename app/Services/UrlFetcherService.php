@@ -13,15 +13,42 @@ class UrlFetcherService
             return ['title' => null, 'favicon_url' => null];
         }
 
-        // SSRF protection: block private/internal IP ranges
-        if ($this->isInternalUrl($url)) {
-            Log::warning('UrlFetcher blocked internal URL', ['url' => $url]);
+        // SSRF protection: resolve DNS once and pin the IP for the request
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!$host) {
+            return ['title' => null, 'favicon_url' => null];
+        }
+
+        // Block known internal hostnames
+        $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
+        if (in_array(strtolower($host), $blockedHosts, true)) {
+            Log::warning('UrlFetcher blocked internal hostname', ['url' => $url]);
+            return ['title' => null, 'favicon_url' => null];
+        }
+
+        // Resolve DNS and check IP ONCE — then pin for the actual request
+        $resolvedIp = gethostbyname($host);
+        if ($resolvedIp === $host) {
+            // DNS resolution failed
+            return ['title' => null, 'favicon_url' => null];
+        }
+
+        if (self::isInternalIp($resolvedIp)) {
+            Log::warning('UrlFetcher blocked internal IP', ['url' => $url, 'ip' => $resolvedIp]);
             return ['title' => null, 'favicon_url' => null];
         }
 
         try {
+            $port = parse_url($url, PHP_URL_PORT) ?? (parse_url($url, PHP_URL_SCHEME) === 'https' ? 443 : 80);
+
+            // Pin the resolved IP via cURL RESOLVE option to prevent DNS rebinding
             $response = Http::timeout(10)
                 ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+                ->withOptions([
+                    'curl' => [
+                        CURLOPT_RESOLVE => ["{$host}:{$port}:{$resolvedIp}"],
+                    ],
+                ])
                 ->get($url);
 
             if (!$response->successful()) {
@@ -40,6 +67,15 @@ class UrlFetcherService
             Log::warning('UrlFetcher failed', ['url' => $url, 'error' => $e->getMessage()]);
             return ['title' => null, 'favicon_url' => null];
         }
+    }
+
+    /**
+     * Check if an IP address is in a private/reserved range.
+     * Public static so it can be reused (e.g., for SMTP host validation).
+     */
+    public static function isInternalIp(string $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
     }
 
     private function extractTitle(string $html): ?string
@@ -74,28 +110,6 @@ class UrlFetcherService
         return null;
     }
 
-    private function isInternalUrl(string $url): bool
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-        if (!$host) {
-            return true;
-        }
-
-        // Block hostnames that resolve to internal IPs
-        $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
-        if (in_array(strtolower($host), $blockedHosts, true)) {
-            return true;
-        }
-
-        // Resolve domain to IP and check if private
-        $ip = gethostbyname($host);
-        if ($ip === $host) {
-            // Could not resolve — allow through, let HTTP client handle it
-            return false;
-        }
-
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
-    }
 
     private function resolveUrl(string $base, string $relative): string
     {

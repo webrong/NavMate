@@ -7,12 +7,13 @@
   <SearchBar v-if="showSearch" />
   <div class="app-body">
     <TheSidebar
+      v-if="showSidebar"
       :mobile-open="mobileMenuOpen"
       :collapsed="isCollapsed"
       @close-mobile="mobileMenuOpen = false"
       @toggle-collapse="isCollapsed = !isCollapsed"
     />
-    <main id="main-content" class="main-content">
+    <main id="main-content" class="main-content" :class="{ 'no-sidebar': !showSidebar }">
       <router-view />
     </main>
   </div>
@@ -56,6 +57,8 @@ Promise.all([
 ]);
 
 const showSearch = computed(() => route.path === '/');
+const showSidebar = computed(() => route.path === '/');
+watch(showSidebar, () => { mobileMenuOpen.value = false; });
 
 const sanitizedAnnouncement = computed(() => sanitizeHtml(siteSettings.settings.announcement));
 provide('siteName', computed(() => siteSettings.siteName));

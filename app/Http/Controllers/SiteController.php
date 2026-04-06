@@ -7,6 +7,7 @@ use App\Models\Site;
 use App\Services\UrlFetcherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 
@@ -46,7 +47,10 @@ class SiteController extends Controller
         ]);
 
         return response()->json(['success' => true, 'site' => $site])
-            ->withCookie(Cookie::make('visitor_token', $visitorToken, 60 * 24 * 365)); // 1 year
+            ->withCookie(Cookie::make(
+                'visitor_token', $visitorToken, 60 * 24 * 365,
+                '/', null, true, true, false, 'Lax'
+            )); // 1 year, secure + httpOnly + SameSite=Lax
     }
 
     public function click(Request $request): JsonResponse
@@ -59,8 +63,14 @@ class SiteController extends Controller
             return response()->json(['success' => false], 404);
         }
 
-        $site->increment('clicks');
+        // Deduplication: max 1 click per IP per site per hour
+        $dedupKey = 'click:' . $request->ip() . ':' . $site->id;
+        if (!Cache::has($dedupKey)) {
+            $site->increment('clicks');
+            Cache::put($dedupKey, true, 3600); // 1 hour window
+        }
 
+        // Always log for analytics (but only increment counter once per window)
         ClickLog::create([
             'site_id' => $site->id,
             'ip_address' => $request->ip(),

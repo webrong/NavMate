@@ -199,9 +199,9 @@ class UpdateService
             $targetVersion = $updateInfo['latest_version'];
             $downloadUrl = $updateInfo['download_url'];
 
-            // Validate download URL scheme
-            if (!str_starts_with($downloadUrl, 'https://') && !str_starts_with($downloadUrl, 'http://')) {
-                throw new \RuntimeException('下载地址协议无效');
+            // Validate download URL scheme — HTTPS only to prevent MitM
+            if (!str_starts_with($downloadUrl, 'https://')) {
+                throw new \RuntimeException('下载地址必须使用 HTTPS 协议');
             }
 
             // 2. Enable maintenance mode (direct file write, no Artisan::call)
@@ -219,6 +219,18 @@ class UpdateService
             // 5. Download release
             $log .= "[5/9] 下载新版本 {$targetVersion}...\n";
             $zipPath = $this->downloadRelease($downloadUrl);
+
+            // 5.5 Verify integrity (SHA256 checksum) if provided by update source
+            if (!empty($updateInfo['sha256'])) {
+                $actualHash = hash_file('sha256', $zipPath);
+                if (!hash_equals($updateInfo['sha256'], $actualHash)) {
+                    @unlink($zipPath);
+                    throw new \RuntimeException("下载包完整性校验失败（预期: {$updateInfo['sha256']}, 实际: {$actualHash}）");
+                }
+                $log .= "    SHA256 校验通过\n";
+            } else {
+                $log .= "    ⚠ 更新源未提供 SHA256 校验值，跳过完整性验证\n";
+            }
 
             // 6. Extract and replace
             $log .= "[6/9] 解压并替换文件...\n";

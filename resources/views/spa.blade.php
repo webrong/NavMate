@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     @php
-        $siteName = $settings['site_name'] ?? config('app.name', '导航');
-        $siteDescription = $settings['site_description'] ?? ($siteName . ' - 为职场人士提供全面的办公网址导航服务');
-        $siteKeywords = $settings['site_keywords'] ?? ($siteName . ',办公导航,职场办公,办公网站,网址导航');
+        $siteName = $settings['site_name'] ?? config('app.name', 'NavMate');
+        $siteDescription = $settings['site_description'] ?? ($siteName . ' - 现代化网址导航系统');
+        $siteKeywords = $settings['site_keywords'] ?? ($siteName . ',网址导航,导航站,NavMate');
         $siteLogo = $settings['site_logo'] ?? asset('static/image/logo.png');
         $siteUrl = config('app.url');
         $currentUrl = $siteUrl . request()->getRequestUri();

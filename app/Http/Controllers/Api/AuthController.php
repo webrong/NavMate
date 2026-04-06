@@ -150,20 +150,19 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
+        // Anti-enumeration: always return the same generic message
+        $genericMessage = '如果该邮箱已注册且未验证，验证邮件将发送到您的邮箱';
+
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            return response()->json(['message' => '如果该邮箱已注册，验证邮件将发送到您的邮箱']);
-        }
-
-        if ($user->hasVerifiedEmail()) {
-            return response()->json(['message' => '邮箱已验证，请直接登录']);
+        if (!$user || $user->hasVerifiedEmail()) {
+            return response()->json(['message' => $genericMessage]);
         }
 
         $user->sendEmailVerificationNotification();
         Log::info('重发验证邮件', ['email' => $user->email, 'ip' => $request->ip()]);
 
-        return response()->json(['message' => '验证邮件已发送，请查收']);
+        return response()->json(['message' => $genericMessage]);
     }
 
     public function forgotPassword(Request $request): JsonResponse

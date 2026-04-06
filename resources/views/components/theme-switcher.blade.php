@@ -145,7 +145,7 @@
 }
 </style>
 
-<script>
+<script nonce="{{ $cspNonce ?? '' }}">
 document.addEventListener('DOMContentLoaded', function() {
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeOptions = document.getElementById('themeOptions');

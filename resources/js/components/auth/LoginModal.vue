@@ -43,7 +43,7 @@ import { useAuthStore } from '../../stores/auth';
 import { useToastStore } from '../../stores/toast';
 
 defineProps({ visible: Boolean });
-defineEmits(['close', 'switch-to-register', 'switch-to-forgot-password']);
+const emit = defineEmits(['close', 'switch-to-register', 'switch-to-forgot-password', 'switch-to-verify']);
 
 const authStore = useAuthStore();
 const toast = useToastStore();
@@ -62,6 +62,7 @@ async function submit() {
     email.value = '';
     password.value = '';
     toast.success('登录成功');
+    emit('close');
   } else {
     error.value = result.message;
     if (result.unverified && result.email) {

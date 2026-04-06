@@ -27,7 +27,7 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
     }),
 
     getters: {
-        siteName: (state) => state.settings.site_name || document.title || '导航',
+        siteName: (state) => state.settings.site_name || document.title || 'NavMate',
         hasAnnouncement: (state) => !!state.settings.announcement,
     },
 

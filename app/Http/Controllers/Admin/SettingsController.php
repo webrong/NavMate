@@ -165,6 +165,13 @@ class SettingsController extends Controller
             'mail_from_name' => 'nullable|string|max:255',
         ]);
 
+        // SSRF protection: block internal/private SMTP hosts
+        $smtpHost = $data['mail_host'];
+        $resolvedIp = gethostbyname($smtpHost);
+        if ($resolvedIp !== $smtpHost && \App\Services\UrlFetcherService::isInternalIp($resolvedIp)) {
+            return response()->json(['code' => 1, 'msg' => 'SMTP 服务器地址不允许指向内网'], 422);
+        }
+
         // Temporarily override mail config
         config([
             'mail.default' => 'smtp',

@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "navmate/navmate",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "NavMate - A modern web navigation system built with Laravel & Vue",
+    "keywords": ["navmate", "navigation", "bookmark", "laravel", "vue"],
     "license": "MIT",
     "require": {
         "php": "^8.3",

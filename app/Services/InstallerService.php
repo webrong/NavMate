@@ -320,7 +320,7 @@ class InstallerService
         $content = file_get_contents($envPath);
 
         $replacements = [
-            'APP_NAME'        => $data['app_name'] ?? '导航',
+            'APP_NAME'        => $data['app_name'] ?? 'NavMate',
             'APP_ENV'         => 'production',
             'APP_DEBUG'       => 'false',
             'APP_URL'         => $data['app_url'] ?? 'http://localhost',

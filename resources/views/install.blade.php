@@ -424,7 +424,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>站点名称<span class="required">*</span></label>
-                        <input type="text" class="form-input" id="app-name" value="导航" placeholder="站点名称">
+                        <input type="text" class="form-input" id="app-name" value="NavMate" placeholder="站点名称">
                     </div>
                     <div class="form-group">
                         <label>站点 URL<span class="required">*</span></label>
@@ -558,7 +558,7 @@
         </div>
     </div>
 
-<script>
+<script nonce="{{ $cspNonce ?? '' }}">
 const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 
 function esc(str) {

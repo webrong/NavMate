@@ -3,7 +3,7 @@
  */
 
 // Store the base site name from Blade template
-let baseSiteName = document.title || '导航';
+let baseSiteName = document.title || 'NavMate';
 
 export function setBaseSiteName(name) {
   if (name) baseSiteName = name;
