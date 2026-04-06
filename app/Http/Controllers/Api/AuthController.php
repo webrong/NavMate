@@ -253,9 +253,10 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        // Delete old avatar
-        if ($user->avatar) {
-            Storage::disk('public')->delete($user->avatar);
+        // Delete old avatar (use raw DB value, not the accessor-transformed URL)
+        $oldAvatar = $user->getRawOriginal('avatar');
+        if ($oldAvatar) {
+            Storage::disk('public')->delete($oldAvatar);
         }
 
         $path = $request->file('avatar')->store('avatars', 'public');

@@ -371,17 +371,36 @@ class UpdateService
 
         $backupFile = $backupDir . '/db-' . date('YmdHis') . '.sql';
         $command = sprintf(
-            '%s -h%s -P%s -u%s %s %s > %s 2>/dev/null',
+            '%s -h%s -P%s -u%s %s > %s 2>/dev/null',
             escapeshellcmd(trim($mysqlDump)),
             escapeshellarg($dbHost),
             escapeshellarg((string) $dbPort),
             escapeshellarg($dbUser),
-            $dbPass ? '-p' . escapeshellarg($dbPass) : '',
             escapeshellarg($dbName),
             escapeshellarg($backupFile)
         );
 
-        exec($command, $output, $returnCode);
+        // Pass password via MYSQL_PWD env var to avoid exposure in process list
+        $env = null;
+        if ($dbPass) {
+            $env = array_merge(getenv(), ['MYSQL_PWD' => $dbPass]);
+        }
+
+        $process = proc_open($command, [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ], $pipes, null, $env);
+
+        if (!is_resource($process)) {
+            @unlink($backupFile);
+            return null;
+        }
+
+        fclose($pipes[0]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $returnCode = proc_close($process);
         if ($returnCode === 0 && file_exists($backupFile)) {
             return $backupFile;
         }

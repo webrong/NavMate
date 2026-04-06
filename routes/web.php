@@ -91,9 +91,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/api/user/layout', [UserLayoutController::class, 'update'])->name('api.layout.update');
     Route::get('/api/user/links', [UserLinkController::class, 'index'])->name('api.links.index');
     Route::post('/api/user/links', [UserLinkController::class, 'store'])->name('api.links.store');
+    Route::put('/api/user/links/reorder', [UserLinkController::class, 'reorder'])->name('api.links.reorder');
     Route::put('/api/user/links/{link}', [UserLinkController::class, 'update'])->name('api.links.update');
     Route::delete('/api/user/links/{link}', [UserLinkController::class, 'destroy'])->name('api.links.destroy');
-    Route::put('/api/user/links/reorder', [UserLinkController::class, 'reorder'])->name('api.links.reorder');
     Route::put('/api/user/profile', [ApiAuthController::class, 'updateProfile'])->name('api.user.profile');
     Route::post('/api/user/avatar', [ApiAuthController::class, 'uploadAvatar'])->name('api.user.avatar');
 });
