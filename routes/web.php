@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\SeoController;
 use App\Http\Controllers\Api\UserLayoutController;
 use App\Http\Controllers\Api\UserLinkController;
-use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\Admin\SettingsController;
@@ -65,7 +64,7 @@ Route::post('/api/quick-add', [SiteController::class, 'quickAdd'])->middleware('
 Route::post('/api/click', [SiteController::class, 'click'])->middleware('throttle:60,1')->name('api.click');
 Route::get('/api/search', [SiteController::class, 'search'])->middleware('throttle:60,1')->name('api.search');
 Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middleware('throttle:60,1')->name('api.categories');
-Route::get('/api/settings', [SettingsController::class, 'publicSettings'])->name('api.settings');
+Route::get('/api/settings', [SettingsController::class, 'publicSettings'])->middleware('throttle:60,1')->name('api.settings');
 Route::get('/api/friend-links', function () {
     return response()->json(\App\Models\FriendLink::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get());
 });
