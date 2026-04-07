@@ -22,6 +22,7 @@ class SettingsController extends Controller
         'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password',
         'mail_from_address', 'mail_from_name',
         'baidu_verify', 'google_verify', 'bing_verify',
+        'home_background_type', 'home_background_color', 'home_background_image',
     ];
 
     private const PUBLIC_KEYS = [
@@ -31,6 +32,7 @@ class SettingsController extends Controller
         'about_description', 'about_timeline', 'terms_content',
         'contact_email', 'contact_qq', 'contact_wechat',
         'baidu_verify', 'google_verify', 'bing_verify',
+        'home_background_type', 'home_background_color', 'home_background_image',
     ];
 
     private const BOOL_KEYS = ['enable_register', 'maintenance_mode'];
@@ -113,6 +115,9 @@ class SettingsController extends Controller
             'baidu_verify' => 'nullable|string|max:100',
             'google_verify' => 'nullable|string|max:100',
             'bing_verify' => 'nullable|string|max:100',
+            'home_background_type' => 'nullable|string|in:none,color,image',
+            'home_background_color' => 'nullable|string|max:20',
+            'home_background_image' => 'nullable|string|max:500',
         ]);
 
         foreach ($data as $key => $value) {

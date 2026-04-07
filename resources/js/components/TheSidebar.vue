@@ -33,6 +33,9 @@
         </li>
       </ul>
       <div class="sidebar-bottom">
+        <div v-if="adsStore.sidebarBottom.length" class="sidebar-ads">
+          <AdBanner v-for="ad in adsStore.sidebarBottom" :key="ad.id" :ad="ad" />
+        </div>
         <button class="sidebar-collapse-btn" @click="$emit('toggle-collapse')" aria-label="收起侧边栏">
           <svg :class="{ rotated: collapsed }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 18 9 12 15 6" />
@@ -47,6 +50,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useCategoryStore } from '../stores/categories';
+import { useAdsStore } from '../stores/ads';
+import AdBanner from './AdBanner.vue';
 
 const props = defineProps({
   mobileOpen: { type: Boolean, default: false },
@@ -55,6 +60,7 @@ const props = defineProps({
 const emit = defineEmits(['close-mobile', 'toggle-collapse']);
 
 const store = useCategoryStore();
+const adsStore = useAdsStore();
 const activeId = ref(null);
 const expandedId = ref(null);
 

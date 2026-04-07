@@ -43,10 +43,13 @@
         <div v-else-if="error" class="error-state">{{ error }}</div>
         <template v-else>
           <UserQuickLinks />
-          <ContentSection
-            v-for="cat in categories" :key="cat.id"
-            :category="cat"
-          />
+          <template v-for="(cat, idx) in categories" :key="cat.id">
+            <ContentSection :category="cat" />
+            <AdBanner
+              v-if="shouldShowAd(idx)"
+              :ad="getContentAd(idx)"
+            />
+          </template>
         </template>
       </template>
     </div>
@@ -57,12 +60,29 @@
 import { computed } from 'vue';
 import { useCategoryStore } from '../stores/categories';
 import { useSearchStore } from '../stores/search';
+import { useAdsStore } from '../stores/ads';
 import ContentSection from '../components/ContentSection.vue';
 import SiteCard from '../components/SiteCard.vue';
 import UserQuickLinks from '../components/UserQuickLinks.vue';
+import AdBanner from '../components/AdBanner.vue';
 
 const store = useCategoryStore();
 const searchStore = useSearchStore();
+const adsStore = useAdsStore();
+
+const AD_INTERVAL = 3;
+
+function shouldShowAd(idx) {
+  return (idx + 1) % AD_INTERVAL === 0
+    && idx < categories.value.length - 1
+    && adsStore.contentBetween.length > 0;
+}
+
+function getContentAd(idx) {
+  const ads = adsStore.contentBetween;
+  if (!ads.length) return null;
+  return ads[(Math.floor((idx + 1) / AD_INTERVAL) - 1) % ads.length];
+}
 
 const categories = computed(() => store.categories);
 const loading = computed(() => store.loading);

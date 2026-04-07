@@ -205,8 +205,11 @@ a { color: inherit; text-decoration: none; }
 .main-content {
     flex: 1;
     min-width: 0;
-    min-height: calc(100vh - var(--main-nav-height));
     padding: 0 10px;
+}
+
+.main-view {
+    min-height: calc(100vh - var(--main-nav-height));
 }
 
 /* ===== Sidebar (sticky in flex flow, not covering banner) ===== */

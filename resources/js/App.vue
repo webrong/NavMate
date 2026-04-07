@@ -2,6 +2,8 @@
   <a href="#main-content" class="skip-link">跳到主要内容</a>
   <ThemeSwitcher />
   <TheHeader @toggle-mobile-menu="mobileMenuOpen = !mobileMenuOpen" />
+  <!-- Background overlay for custom backgrounds -->
+  <div v-if="homeBgStyle" class="custom-bg-layer" :style="homeBgStyle"></div>
   <!-- Announcement bar -->
   <div v-if="siteSettings.hasAnnouncement" class="announcement-bar" v-html="sanitizedAnnouncement"></div>
   <SearchBar v-if="showSearch" />
@@ -13,9 +15,16 @@
       @close-mobile="mobileMenuOpen = false"
       @toggle-collapse="isCollapsed = !isCollapsed"
     />
-    <main id="main-content" class="main-content" :class="{ 'no-sidebar': !showSidebar }">
-      <router-view />
-    </main>
+    <div class="main-content" :class="{ 'no-sidebar': !showSidebar }">
+      <main id="main-content" class="main-view">
+        <router-view />
+      </main>
+      <div v-if="adsStore.footerAbove.length && route.path === '/'" class="footer-ads">
+        <div class="footer-ads-inner" :class="'footer-ads-count-' + Math.min(adsStore.footerAbove.length, 3)">
+          <AdBanner v-for="ad in adsStore.footerAbove" :key="ad.id" :ad="ad" />
+        </div>
+      </div>
+    </div>
   </div>
   <TheFooter />
   <AuthModals />
@@ -40,6 +49,8 @@ import { useFavoritesStore } from './stores/favorites';
 import { useLayoutStore } from './stores/layout';
 import { useUserLinksStore } from './stores/userLinks';
 import { useSiteSettingsStore } from './stores/siteSettings';
+import { useAdsStore } from './stores/ads';
+import AdBanner from './components/AdBanner.vue';
 
 const route = useRoute();
 const mobileMenuOpen = ref(false);
@@ -50,14 +61,20 @@ const favoritesStore = useFavoritesStore();
 const layoutStore = useLayoutStore();
 const userLinksStore = useUserLinksStore();
 const siteSettings = useSiteSettingsStore();
+const adsStore = useAdsStore();
 Promise.all([
   store.fetchCategories(),
   authStore.init(),
   siteSettings.fetchSettings(),
+  adsStore.fetchAds(),
 ]);
 
 const showSearch = computed(() => route.path === '/');
 const showSidebar = computed(() => route.path === '/');
+const homeBgStyle = computed(() => {
+  if (route.path !== '/') return null;
+  return siteSettings.backgroundStyle;
+});
 watch(showSidebar, () => { mobileMenuOpen.value = false; });
 
 const sanitizedAnnouncement = computed(() => sanitizeHtml(siteSettings.settings.announcement));
@@ -102,5 +119,40 @@ watch(() => siteSettings.siteName, (name) => {
   font-size: 13px;
   color: var(--announcement-color);
   line-height: 1.6;
+}
+
+.custom-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+/* Dark mode overlay for background images */
+[data-theme="dark"] .custom-bg-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.footer-ads {
+  padding: 0;
+}
+
+.footer-ads-inner {
+  display: grid;
+  gap: 12px;
+}
+
+.footer-ads-count-1 {
+  grid-template-columns: 1fr;
+}
+
+.footer-ads-count-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.footer-ads-count-3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 </style>

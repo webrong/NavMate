@@ -30,6 +30,10 @@
           <ImportOutlined />
           <span>书签导入</span>
         </a-menu-item>
+        <a-menu-item key="/admin/ads">
+          <PictureOutlined />
+          <span>广告管理</span>
+        </a-menu-item>
         <a-menu-item key="/admin/settings">
           <SettingOutlined />
           <span>系统设置</span>
@@ -91,6 +95,7 @@ import {
   TeamOutlined,
   BarChartOutlined,
   ImportOutlined,
+  PictureOutlined,
   SettingOutlined,
   InfoCircleOutlined,
   MonitorOutlined,

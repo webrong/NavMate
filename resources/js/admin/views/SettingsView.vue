@@ -1,5 +1,5 @@
 <template>
-  <div style="max-width: 800px; margin: 0 auto">
+  <div>
     <a-card title="系统设置" :bordered="false" :loading="loading">
       <a-tabs v-model:activeKey="activeTab">
         <!-- 基础信息 -->
@@ -39,6 +39,38 @@
             <a-form-item label="维护模式">
               <a-switch v-model:checked="form.maintenance_mode" checked-children="开启" un-checked-children="关闭" />
               <div style="color: #999; font-size: 12px; margin-top: 4px">开启后前台将显示维护页面，后台仍可正常访问</div>
+            </a-form-item>
+          </a-form>
+        </a-tab-pane>
+
+        <!-- 首页背景 -->
+        <a-tab-pane key="background" tab="首页背景">
+          <a-form :model="form" layout="vertical" style="margin-top: 16px">
+            <a-form-item label="背景类型">
+              <a-radio-group v-model:value="form.home_background_type">
+                <a-radio value="none">默认（跟随主题）</a-radio>
+                <a-radio value="color">自定义纯色</a-radio>
+                <a-radio value="image">自定义图片</a-radio>
+              </a-radio-group>
+            </a-form-item>
+            <a-form-item v-if="form.home_background_type === 'color'" label="背景颜色">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <input type="color" v-model="form.home_background_color" style="width: 40px; height: 32px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; padding: 2px" />
+                <a-input v-model:value="form.home_background_color" placeholder="#f5f5f5" style="width: 160px" />
+              </div>
+              <div style="color: #999; font-size: 12px; margin-top: 4px">建议使用浅色系，避免影响内容可读性</div>
+            </a-form-item>
+            <a-form-item v-if="form.home_background_type === 'image'" label="背景图片">
+              <div style="display: flex; align-items: flex-start; gap: 8px">
+                <a-input v-model:value="form.home_background_image" placeholder="输入图片 URL 或上传" style="flex: 1" />
+                <a-upload :show-upload-list="false" accept="image/*" :before-upload="handleBgUpload">
+                  <a-button :loading="bgUploading">上传</a-button>
+                </a-upload>
+              </div>
+              <div v-if="form.home_background_image" style="margin-top: 8px">
+                <img :src="form.home_background_image" alt="背景预览" style="max-width: 320px; max-height: 160px; border-radius: 6px; border: 1px solid #eee" />
+              </div>
+              <div style="color: #999; font-size: 12px; margin-top: 4px">图片会自动铺满并居中，暗色模式下会叠加半透明遮罩</div>
             </a-form-item>
           </a-form>
         </a-tab-pane>
@@ -358,6 +390,9 @@ const form = reactive({
   baidu_verify: '',
   google_verify: '',
   bing_verify: '',
+  home_background_type: 'none',
+  home_background_color: '#f5f5f5',
+  home_background_image: '',
 });
 
 // Timeline editor
@@ -370,6 +405,27 @@ watch(timelineItems, (val) => {
 }, { deep: true });
 
 const qrcodeUploading = ref('');
+const bgUploading = ref(false);
+
+async function handleBgUpload(file) {
+  bgUploading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await request.post('/admin/api/settings/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (data.code === 0) {
+      form.home_background_image = data.data.url;
+      message.success('上传成功');
+    }
+  } catch (e) {
+    message.error(e.response?.data?.message || '上传失败');
+  } finally {
+    bgUploading.value = false;
+  }
+  return false;
+}
 
 // Mail presets
 const mailPresets = [

@@ -1,5 +1,5 @@
 <template>
-  <div style="max-width: 600px; margin: 0 auto">
+  <div>
     <a-card title="书签导入" :bordered="false">
       <div v-if="!previewData && !importResult">
         <a-upload-dragger

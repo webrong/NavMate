@@ -22,6 +22,9 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
             contact_email: '',
             contact_qq: '',
             contact_wechat: '',
+            home_background_type: 'none',
+            home_background_color: '',
+            home_background_image: '',
         },
         loaded: false,
     }),
@@ -29,6 +32,22 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
     getters: {
         siteName: (state) => state.settings.site_name || document.title || 'NavMate',
         hasAnnouncement: (state) => !!state.settings.announcement,
+        backgroundStyle: (state) => {
+            const type = state.settings.home_background_type;
+            if (type === 'color' && state.settings.home_background_color) {
+                return { backgroundColor: state.settings.home_background_color };
+            }
+            if (type === 'image' && state.settings.home_background_image) {
+                return {
+                    backgroundImage: `url(${state.settings.home_background_image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundAttachment: 'fixed',
+                    backgroundRepeat: 'no-repeat',
+                };
+            }
+            return null;
+        },
     },
 
     actions: {

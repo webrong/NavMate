@@ -1,5 +1,5 @@
 <template>
-  <div style="max-width: 1000px; margin: 0 auto">
+  <div>
     <a-card title="系统升级" :bordered="false">
       <div style="margin-top: 16px">
         <!-- 当前版本 + 检查更新 -->

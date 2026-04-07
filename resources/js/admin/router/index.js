@@ -50,6 +50,12 @@ const routes = [
                 meta: { title: '书签导入' },
             },
             {
+                path: 'ads',
+                name: 'Ads',
+                component: () => import('../views/AdsView.vue'),
+                meta: { title: '广告管理' },
+            },
+            {
                 path: 'settings',
                 name: 'Settings',
                 component: () => import('../views/SettingsView.vue'),
