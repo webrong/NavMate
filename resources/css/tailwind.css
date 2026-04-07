@@ -235,8 +235,14 @@ a { color: inherit; text-decoration: none; }
     width: 48px;
 }
 
-.sidebar.collapsed .sidebar-text{
+.sidebar.collapsed .sidebar-text,
+.sidebar.collapsed .sidebar-arrow {
     display: none;
+}
+
+.sidebar.collapsed .sidebar-link {
+    padding: 8px 0;
+    justify-content: center;
 }
 
 .sidebar-inner {
