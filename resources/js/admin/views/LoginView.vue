@@ -48,7 +48,7 @@ async function handleLogin() {
   loading.value = false;
   if (result.success !== false) {
     message.success('登录成功');
-    router.push('/admin/dashboard');
+    router.push('/admin/dashboard').catch(() => {});
   } else {
     message.error(result.message || '登录失败');
   }

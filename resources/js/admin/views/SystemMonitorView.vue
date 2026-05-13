@@ -2,7 +2,10 @@
   <div :loading="loading">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
       <h2 style="margin: 0; font-size: 18px; font-weight: 600">系统监控</h2>
-      <a-button size="small" :loading="loading" @click="loadInfo(true)">刷新</a-button>
+      <a-space>
+        <a-button size="small" :loading="clearing" danger @click="handleClearCache">清理缓存</a-button>
+        <a-button size="small" :loading="loading" @click="loadInfo(true)">刷新</a-button>
+      </a-space>
     </div>
 
     <div v-if="info" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 16px">
@@ -167,6 +170,7 @@ import { message } from 'antdv-next';
 import request from '../utils/request';
 
 const loading = ref(true);
+const clearing = ref(false);
 const info = ref(null);
 
 const diskColor = computed(() => {
@@ -203,6 +207,19 @@ async function loadInfo(refresh) {
     message.error('加载系统信息失败');
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleClearCache() {
+  clearing.value = true;
+  try {
+    const { data } = await request.post('/admin/api/system/clear-cache');
+    message.success(data.message || '缓存已清理');
+    loadInfo(true);
+  } catch {
+    message.error('清理缓存失败');
+  } finally {
+    clearing.value = false;
   }
 }
 

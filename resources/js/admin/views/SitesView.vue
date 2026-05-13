@@ -3,9 +3,7 @@
     <div class="page-toolbar">
       <a-space>
         <a-input-search v-model:value="keyword" placeholder="搜索站点名称/URL" style="width: 250px" @search="handleSearch" allow-clear />
-        <a-select v-model:value="filterCategory" placeholder="全部分类" style="width: 120px" allow-clear @change="onCategoryChange">
-          <a-select-option v-for="cat in store.categories" :key="cat.id" :value="cat.id">{{ cat.name }}</a-select-option>
-        </a-select>
+        <a-select v-model:value="filterCategory" placeholder="全部分类" style="width: 120px" allow-clear :options="categoryOptions" @change="onCategoryChange" />
         <a-select v-model:value="filterPublic" placeholder="公开状态" style="width: 120px" allow-clear @change="onPublicChange">
           <a-select-option value="">全部</a-select-option>
           <a-select-option :value="1">公开</a-select-option>
@@ -57,9 +55,7 @@
           <a-input v-model:value="form.title" placeholder="站点名称" />
         </a-form-item>
         <a-form-item label="分类" required>
-          <a-select v-model:value="form.category_id" placeholder="选择分类">
-            <a-select-option v-for="cat in store.categories" :key="cat.id" :value="cat.id">{{ cat.name }}</a-select-option>
-          </a-select>
+          <a-select v-model:value="form.category_id" placeholder="选择分类" :options="categoryOptions" />
         </a-form-item>
         <a-form-item label="Favicon URL">
           <a-input v-model:value="form.favicon_url" placeholder="自动抓取或手动填写" />
@@ -133,6 +129,10 @@ const pagination = computed(() => ({
   showTotal: (total) => `共 ${total} 条`,
   showSizeChanger: true,
 }));
+
+const categoryOptions = computed(() =>
+  store.categories.map(cat => ({ value: cat.id, label: cat.name }))
+);
 
 onMounted(() => {
   store.fetchList();

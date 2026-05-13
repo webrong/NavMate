@@ -25,8 +25,12 @@ export const useAdminSitesStore = defineStore('adminSites', {
         },
 
         async fetchCategories() {
-            const { data } = await request.get('/admin/api/sites/categories');
-            this.categories = data.data || [];
+            try {
+                const res = await request.get('/admin/api/sites/categories');
+                this.categories = res.data?.data || [];
+            } catch (e) {
+                console.error('Failed to fetch categories:', e);
+            }
         },
 
         async create(formData) {

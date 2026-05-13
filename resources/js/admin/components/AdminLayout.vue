@@ -123,7 +123,9 @@ watch(() => route.path, (path) => {
 });
 
 function onMenuClick({ key }) {
-  router.push(key);
+  if (route.path !== key) {
+    router.push(key).catch(() => {});
+  }
 }
 
 function goHome() {
@@ -132,7 +134,7 @@ function goHome() {
 
 async function handleLogout() {
   await authStore.logout();
-  router.push('/admin/login');
+  router.replace('/admin/login').catch(() => {});
 }
 </script>
 
