@@ -2,6 +2,10 @@
 
 > Your web navigation companion.
 
+**在线演示**：[https://hao.wccto.com](https://hao.wccto.com)
+
+![NavMate 截图](img/screenshot.jpeg)
+
 NavMate 是一个基于 Laravel 13 + Vue 3.5 的现代化网址导航系统，支持多主题、用户系统、后台管理、书签导入等功能。
 
 ## 技术栈
