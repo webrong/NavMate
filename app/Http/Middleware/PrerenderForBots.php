@@ -81,7 +81,13 @@ class PrerenderForBots
             $categories = collect();
         }
 
-        $allSettings = Setting::allCached();
+        $allSettings = collect();
+
+        try {
+            $allSettings = Setting::allCached();
+        } catch (\Throwable) {
+            // Database not available during installation
+        }
 
         $siteName = $allSettings->get('site_name') ?: config('app.name', '导航');
         $siteDescription = $allSettings->get('site_description') ?: ($siteName . ' - 现代化网址导航系统');

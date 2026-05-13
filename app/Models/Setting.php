@@ -61,9 +61,14 @@ class Setting extends Model
             // Cache corruption — clear and re-fetch
         }
 
-        $result = static::query()->pluck('value', 'key');
-        Cache::put(static::$cacheKey, $result, 3600);
-        return $result;
+        try {
+            $result = static::query()->pluck('value', 'key');
+            Cache::put(static::$cacheKey, $result, 3600);
+            return $result;
+        } catch (\Throwable) {
+            // Database not available (e.g. during installation)
+            return collect();
+        }
     }
 
     /**

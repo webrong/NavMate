@@ -39,7 +39,7 @@ class UpdateService
         $data = file_exists($path) ? json_decode(file_get_contents($path), true) : [];
         $data['version'] = $version;
         $data['updated_at'] = now()->toIso8601String();
-        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
     }
 
     /**
@@ -82,10 +82,19 @@ class UpdateService
             ->get("https://api.github.com/repos/{$this->repo}/releases/latest");
 
         if (!$response->successful()) {
+            $errorMsg = 'GitHub API 请求失败: ' . $response->status();
+            if ($response->status() === 403) {
+                $remaining = $response->header('X-RateLimit-Remaining');
+                if ($remaining === '0') {
+                    $reset = $response->header('X-RateLimit-Reset');
+                    $waitMinutes = $reset ? max(1, round(($reset - time()) / 60)) : 60;
+                    $errorMsg = "GitHub API 请求次数已用完，请 {$waitMinutes} 分钟后再试";
+                }
+            }
             return [
                 'has_update' => false,
                 'current_version' => $currentVersion,
-                'error' => 'GitHub API 请求失败: ' . $response->status(),
+                'error' => $errorMsg,
             ];
         }
 
@@ -182,6 +191,7 @@ class UpdateService
         $currentVersion = $this->getCurrentVersion();
         $log = '';
         $backupPath = null;
+        $updateInfo = [];
 
         try {
             // 1. Check for update
@@ -214,7 +224,10 @@ class UpdateService
 
             // 4. Backup database
             $log .= "[4/9] 备份数据库...\n";
-            $this->backupDatabase();
+            $dbBackup = $this->backupDatabase();
+            $log .= $dbBackup
+                ? "    数据库已备份到: {$dbBackup}\n"
+                : "    ⚠ 数据库备份跳过（mysqldump 不可用或备份失败）\n";
 
             // 5. Download release
             $log .= "[5/9] 下载新版本 {$targetVersion}...\n";
@@ -358,6 +371,13 @@ class UpdateService
                 @unlink($path);
             }
         }
+
+        // Clear application cache
+        try {
+            \Illuminate\Support\Facades\Cache::flush();
+        } catch (\Throwable) {
+            // Cache may not be available
+        }
     }
 
     /**
@@ -490,12 +510,20 @@ class UpdateService
             mkdir($tmpDir, 0755, true);
         }
 
-        $zipPath = $tmpDir . '/update-' . time() . '.zip';
+        $zipPath = $tmpDir . '/update-' . uniqid('', true) . '.zip';
         $response = Http::timeout(300)->sink($zipPath)->get($url);
 
         if (!$response->successful()) {
             @unlink($zipPath);
             throw new \RuntimeException('下载发布包失败: HTTP ' . $response->status());
+        }
+
+        // Check download size (limit: 200MB)
+        $maxBytes = 200 * 1024 * 1024;
+        $fileSize = @filesize($zipPath);
+        if ($fileSize !== false && $fileSize > $maxBytes) {
+            @unlink($zipPath);
+            throw new \RuntimeException('下载文件过大（' . round($fileSize / 1024 / 1024, 1) . 'MB），超过 200MB 限制');
         }
 
         return $zipPath;
@@ -511,11 +539,10 @@ class UpdateService
             throw new \RuntimeException('无法打开下载的压缩包');
         }
 
-        // Validate ZIP contents: block path traversal
+        // Validate ZIP contents: block path traversal and absolute paths
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            // Block path traversal
-            if (str_contains($name, '..')) {
+            if (str_contains($name, '..') || str_starts_with($name, '/')) {
                 $zip->close();
                 throw new \RuntimeException('压缩包包含非法路径: ' . $name);
             }
@@ -525,9 +552,15 @@ class UpdateService
         // Re-open and extract
         $zip = new ZipArchive();
         $zip->open($zipPath);
-        $tmpDir = storage_path('app/tmp/extract-' . time());
-        mkdir($tmpDir, 0755, true);
-        $zip->extractTo($tmpDir);
+        $tmpDir = storage_path('app/tmp/extract-' . uniqid('', true));
+        if (!mkdir($tmpDir, 0755, true)) {
+            throw new \RuntimeException('无法创建临时目录');
+        }
+        if (!$zip->extractTo($tmpDir)) {
+            $zip->close();
+            $this->recursiveDelete($tmpDir);
+            throw new \RuntimeException('压缩包解压失败');
+        }
         $zip->close();
 
         // Find the actual source directory (may be wrapped in a root folder)
@@ -536,6 +569,12 @@ class UpdateService
         $dirs = array_values(array_filter($entries, fn ($e) => $e !== '.' && $e !== '..' && is_dir("{$tmpDir}/{$e}")));
         if (count($dirs) === 1) {
             $sourceDir = "{$tmpDir}/{$dirs[0]}";
+        }
+
+        // Validate source directory looks like a Laravel project
+        if (!file_exists("{$sourceDir}/artisan") || !file_exists("{$sourceDir}/composer.json")) {
+            $this->recursiveDelete($tmpDir);
+            throw new \RuntimeException('压缩包目录结构无效：未检测到有效的 Laravel 项目');
         }
 
         // Files/directories to preserve
@@ -550,17 +589,25 @@ class UpdateService
     /**
      * Recursively copy files from source to destination, skipping preserved paths
      */
-    protected function recursiveCopy(string $src, string $dst, array $preserve): void
+    protected function recursiveCopy(string $src, string $dst, array $preserve, string $relativePath = ''): void
     {
         $dir = opendir($src);
+        if ($dir === false) {
+            throw new \RuntimeException("无法打开目录: {$src}");
+        }
+
         while (($file = readdir($dir)) !== false) {
             if ($file === '.' || $file === '..') {
                 continue;
             }
 
-            // Skip preserved items
-            if (in_array($file, $preserve, true)) {
-                continue;
+            $currentRelative = $relativePath !== '' ? "{$relativePath}/{$file}" : $file;
+
+            // Skip preserved items (match full relative path, top-level name, or prefix)
+            foreach ($preserve as $p) {
+                if ($currentRelative === $p || $file === $p || str_starts_with($currentRelative . '/', $p . '/')) {
+                    continue 2;
+                }
             }
 
             $srcPath = "{$src}/{$file}";
@@ -570,9 +617,11 @@ class UpdateService
                 if (!is_dir($dstPath)) {
                     mkdir($dstPath, 0755, true);
                 }
-                $this->recursiveCopy($srcPath, $dstPath, []);
+                $this->recursiveCopy($srcPath, $dstPath, $preserve, $currentRelative);
             } else {
-                copy($srcPath, $dstPath);
+                if (!@copy($srcPath, $dstPath)) {
+                    throw new \RuntimeException("文件复制失败: {$currentRelative}");
+                }
             }
         }
         closedir($dir);
@@ -589,7 +638,7 @@ class UpdateService
         }
 
         // Extract to temp dir first, then selectively copy back
-        $tmpDir = storage_path('app/tmp/restore-' . time());
+        $tmpDir = storage_path('app/tmp/restore-' . uniqid('', true));
         mkdir($tmpDir, 0755, true);
         $zip->extractTo($tmpDir);
         $zip->close();
@@ -612,15 +661,17 @@ class UpdateService
     protected function recursiveDelete(string $path): void
     {
         if (is_dir($path)) {
-            $items = scandir($path);
-            foreach ($items as $item) {
-                if ($item !== '.' && $item !== '..') {
-                    $this->recursiveDelete("{$path}/{$item}");
+            $items = @scandir($path);
+            if ($items !== false) {
+                foreach ($items as $item) {
+                    if ($item !== '.' && $item !== '..') {
+                        $this->recursiveDelete("{$path}/{$item}");
+                    }
                 }
             }
-            rmdir($path);
+            @rmdir($path);
         } elseif (file_exists($path)) {
-            unlink($path);
+            @unlink($path);
         }
     }
 }

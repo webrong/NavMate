@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Setting;
+use App\Services\InstallerService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,7 +12,13 @@ class CheckMaintenanceMode
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (Setting::get('maintenance_mode') === '1') {
+        // Skip during installation (database may not be configured)
+        if (!InstallerService::isInstalled()) {
+            return $next($request);
+        }
+
+        try {
+            if (Setting::get('maintenance_mode') === '1') {
             // Allow admin routes only for authenticated admins
             if ($request->is('admin*') && \Auth::guard('admin')->check()) {
                 return $next($request);
@@ -27,6 +34,9 @@ class CheckMaintenanceMode
             }
 
             return response()->view('maintenance', [], 503);
+            }
+        } catch (\Throwable) {
+            // Database not available during installation
         }
 
         return $next($request);

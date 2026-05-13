@@ -22,7 +22,9 @@ request.interceptors.response.use(
     (error) => {
         const status = error.response?.status;
         if (status === 401 || status === 419) {
-            window.location.href = '/admin/login';
+            if (!window.location.pathname.startsWith('/admin/login')) {
+                window.location.href = '/admin/login';
+            }
             return Promise.reject(error);
         }
         if (status === 403) {

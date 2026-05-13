@@ -315,7 +315,7 @@
         </div>
 
         <div class="wizard-body">
-            <form id="install-form" onsubmit="return false">
+            <form id="install-form">
             <meta name="csrf-token" content="{{ csrf_token() }}">
 
             <!-- Step 1: Environment Check -->
@@ -326,7 +326,7 @@
                 </div>
                 <div class="wizard-footer">
                     <div></div>
-                    <button class="btn btn-primary" id="btn-step1-next" disabled onclick="wizard.next()">下一步</button>
+                    <button class="btn btn-primary" id="btn-step1-next" disabled data-action="next">下一步</button>
                 </div>
             </div>
 
@@ -360,13 +360,13 @@
                 </div>
 
                 <div style="margin-top: 8px;">
-                    <button class="btn btn-test" id="btn-test-db" onclick="wizard.testDatabase()">测试连接</button>
+                    <button class="btn btn-test" id="btn-test-db" data-action="test-db">测试连接</button>
                     <div id="db-test-result"></div>
                 </div>
 
                 <div class="wizard-footer">
-                    <button class="btn" onclick="wizard.prev()">上一步</button>
-                    <button class="btn btn-primary" onclick="wizard.next()">下一步</button>
+                    <button class="btn" data-action="prev">上一步</button>
+                    <button class="btn btn-primary" data-action="next">下一步</button>
                 </div>
             </div>
 
@@ -376,15 +376,15 @@
                 <div class="form-group">
                     <label>缓存驱动</label>
                     <div class="radio-group" id="cache-type-group">
-                        <label class="radio-item selected" onclick="wizard.selectCache('database')">
+                        <label class="radio-item selected" data-cache="database">
                             <input type="radio" name="cache_store" value="database" checked>
                             Database（默认）
                         </label>
-                        <label class="radio-item" onclick="wizard.selectCache('redis')">
+                        <label class="radio-item" data-cache="redis">
                             <input type="radio" name="cache_store" value="redis">
                             Redis
                         </label>
-                        <label class="radio-item" onclick="wizard.selectCache('file')">
+                        <label class="radio-item" data-cache="file">
                             <input type="radio" name="cache_store" value="file">
                             File
                         </label>
@@ -406,15 +406,15 @@
                         <label>密码</label>
                         <input type="password" class="form-input" id="redis-password" placeholder="留空则无密码">
                     </div>
-                    <button class="btn btn-test" id="btn-test-redis" onclick="wizard.testRedis()">测试连接</button>
+                    <button class="btn btn-test" id="btn-test-redis" data-action="test-redis">测试连接</button>
                     <div id="redis-test-result"></div>
                 </div>
 
                 <div class="form-hint" style="margin-top: 4px;">Database 缓存使用已有数据库，无需额外配置。Redis 性能更好但需要安装 Redis 服务。</div>
 
                 <div class="wizard-footer">
-                    <button class="btn" onclick="wizard.prev()">上一步</button>
-                    <button class="btn btn-primary" onclick="wizard.next()">下一步</button>
+                    <button class="btn" data-action="prev">上一步</button>
+                    <button class="btn btn-primary" data-action="next">下一步</button>
                 </div>
             </div>
 
@@ -460,8 +460,8 @@
                 </label>
 
                 <div class="wizard-footer">
-                    <button class="btn" onclick="wizard.prev()">上一步</button>
-                    <button class="btn btn-primary" onclick="wizard.next()">下一步</button>
+                    <button class="btn" data-action="prev">上一步</button>
+                    <button class="btn btn-primary" data-action="next">下一步</button>
                 </div>
             </div>
 
@@ -470,14 +470,14 @@
                 <div class="step-title">邮件配置（可选）</div>
 
                 <label class="checkbox-item" style="margin-bottom: 16px;">
-                    <input type="checkbox" id="skip-mail" checked onchange="wizard.toggleMail()">
+                    <input type="checkbox" id="skip-mail" checked>
                     跳过邮件配置（可在后台"系统设置 > 邮件配置"中设置）
                 </label>
 
                 <div class="mail-section" id="mail-section">
                     <div class="form-group">
                         <label>邮箱预设</label>
-                        <select class="form-input" id="mail-preset" onchange="wizard.applyMailPreset(this.value)">
+                        <select class="form-input" id="mail-preset">
                             <option value="">自定义</option>
                             <option value="qq">QQ 邮箱</option>
                             <option value="163">163 邮箱</option>
@@ -529,8 +529,8 @@
                 </div>
 
                 <div class="wizard-footer">
-                    <button class="btn" onclick="wizard.prev()">上一步</button>
-                    <button class="btn btn-primary" onclick="wizard.next()">下一步</button>
+                    <button class="btn" data-action="prev">上一步</button>
+                    <button class="btn btn-primary" data-action="next">下一步</button>
                 </div>
             </div>
 
@@ -551,7 +551,7 @@
                     <div style="font-size:48px; color:#ff4d4f; margin-bottom:16px;">&#10007;</div>
                     <h2 style="font-size:20px; margin-bottom:8px;">安装失败</h2>
                     <p id="install-error-msg" style="color:#666; font-size:14px; margin-bottom:24px;"></p>
-                    <button class="btn" onclick="wizard.goTo(1)">重新开始</button>
+                    <button class="btn" data-action="restart">重新开始</button>
                 </div>
             </div>
             </form>
@@ -599,17 +599,49 @@ const wizard = {
     totalSteps: 6,
 
     init() {
+        this.bindEvents();
         this.checkEnvironment();
     },
 
+    bindEvents() {
+        document.getElementById('install-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+        });
+
+        document.getElementById('install-form').addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            switch (action) {
+                case 'next': wizard.next(); break;
+                case 'prev': wizard.prev(); break;
+                case 'test-db': wizard.testDatabase(); break;
+                case 'test-redis': wizard.testRedis(); break;
+                case 'restart': wizard.goTo(1); break;
+            }
+        });
+
+        document.getElementById('cache-type-group').addEventListener('click', function(e) {
+            const item = e.target.closest('[data-cache]');
+            if (!item) return;
+            wizard.selectCache(item.dataset.cache, item);
+        });
+
+        document.getElementById('skip-mail').addEventListener('change', function() {
+            wizard.toggleMail();
+        });
+
+        document.getElementById('mail-preset').addEventListener('change', function() {
+            wizard.applyMailPreset(this.value);
+        });
+    },
+
     goTo(step) {
-        // Update steps indicator
         document.querySelectorAll('.step-item').forEach((el, i) => {
             el.classList.remove('active', 'done');
             if (i + 1 < step) el.classList.add('done');
             if (i + 1 === step) el.classList.add('active');
         });
-        // Show panel
         document.querySelectorAll('.step-panel').forEach((el, i) => {
             el.classList.toggle('active', i + 1 === step);
         });
@@ -635,7 +667,6 @@ const wizard = {
         }
     },
 
-    // Step 1: Environment check
     async checkEnvironment() {
         const res = await post('/install/check-environment');
         const container = document.getElementById('env-checks');
@@ -668,7 +699,6 @@ const wizard = {
         }
     },
 
-    // Step 2: Database
     async testDatabase() {
         const btn = document.getElementById('btn-test-db');
         const resultEl = document.getElementById('db-test-result');
@@ -702,10 +732,9 @@ const wizard = {
         btn.textContent = '测试连接';
     },
 
-    // Step 3: Cache
-    selectCache(type) {
-        document.querySelectorAll('#cache-type-group .radio-item').forEach(el => el.classList.remove('selected'));
-        event.currentTarget.classList.add('selected');
+    selectCache(type, el) {
+        document.querySelectorAll('#cache-type-group .radio-item').forEach(item => item.classList.remove('selected'));
+        el.classList.add('selected');
         document.getElementById('redis-fields').classList.toggle('show', type === 'redis');
     },
 
@@ -730,7 +759,6 @@ const wizard = {
         btn.textContent = '测试连接';
     },
 
-    // Step 5: Mail
     toggleMail() {
         const skip = document.getElementById('skip-mail').checked;
         document.getElementById('mail-section').classList.toggle('show', !skip);
@@ -744,7 +772,6 @@ const wizard = {
         document.getElementById('mail-encryption').value = preset.encryption;
     },
 
-    // Validation
     validateStep4() {
         const name = document.getElementById('admin-name').value.trim();
         const email = document.getElementById('admin-email').value.trim();
@@ -760,7 +787,6 @@ const wizard = {
 
     validateStep5() { return true; },
 
-    // Step 6: Execute
     async executeInstall() {
         const steps = ['准备中', '写入配置文件', '生成密钥', '运行数据库迁移', '创建管理员账号', '初始化设置', '完成'];
         let stepIdx = 0;
@@ -777,7 +803,6 @@ const wizard = {
             }
         };
 
-        // Simulate progress
         const timer = setInterval(advanceStep, 1200);
 
         const cacheType = document.querySelector('input[name="cache_store"]:checked').value;

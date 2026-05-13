@@ -97,6 +97,7 @@ class InstallerService
     public function testDatabase(array $data): array
     {
         try {
+            $dbName = $data['db_database'] ?? '';
             $dsn = sprintf(
                 'mysql:host=%s;port=%s',
                 $data['db_host'] ?? '127.0.0.1',
@@ -106,8 +107,8 @@ class InstallerService
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_TIMEOUT => 5,
             ]);
-            $dbName = $data['db_database'] ?? '';
             if ($dbName) {
+                $pdo->exec("CREATE DATABASE IF NOT EXISTS `" . str_replace('`', '``', $dbName) . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
                 $pdo->exec("USE `" . str_replace('`', '``', $dbName) . "`");
             }
 
@@ -252,7 +253,7 @@ class InstallerService
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
             ]) : [],
         ]]);
 
