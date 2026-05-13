@@ -142,7 +142,7 @@ database/
 ## 环境要求
 
 - PHP >= 8.3（需启用 extensions：mbstring, xml, curl, mysqlnd/pdo_sqlite, zip, fileinfo）
-- MySQL 8.0+ / SQLite 3
+- MySQL 5.7.22+ / 8.0+ / SQLite 3
 - Node.js >= 18（仅构建时需要）
 - Composer 2
 - Nginx / Apache（生产环境）
@@ -416,9 +416,9 @@ location / {
 
 ---
 
-## 部署方式四：1Panel
+## 部署方式四：1Panel（Docker 面板）
 
-适合喜欢现代化面板的用户。
+适合喜欢现代化面板的用户。1Panel 使用 Docker 容器管理运行环境，以下为完整部署流程。
 
 ### 1. 安装 1Panel
 
@@ -429,61 +429,76 @@ curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_
 ### 2. 安装运行环境
 
 在 1Panel「应用商店」中安装：
-- **OpenResty**（Nginx 替代品，性能更好）
-- **MySQL** 8.0
+- **OpenResty**（Web 服务器）
+- **MySQL** 5.7+ 或 8.0
 
-在「主机」→「终端」中安装 PHP：
+> MySQL 5.7.22+ 兼容本项目（JSON 列支持）。
 
-```bash
-# 安装 PHP 8.3（以 Ubuntu 为例）
-sudo apt install -y php8.3 php8.3-fpm php8.3-mysql php8.3-mbstring \
-  php8.3-xml php8.3-curl php8.3-zip php8.3-fileinfo php8.3-gd
-```
-
-### 3. 创建数据库
-
-「数据库」→「MySQL」→「创建数据库」：
-- 名称：`navmate`
-- 用户：`navmate`
-- 密码：自动生成并记录
-
-### 4. 创建网站
+### 3. 创建网站
 
 「网站」→「创建网站」→ 选择「运行环境」：
 - 主域名：`nav.example.com`
-- 运行环境：**PHP 8.3**
-- 根目录：`/opt/1panel/apps/openresty/navmate`
+- 运行环境：**PHP 8.4**（如无此选项，选 8.3 并在容器中升级）
+- 根目录保持默认即可
+
+> 1Panel 会自动创建 PHP 容器和 OpenResty 反向代理配置。
+
+### 4. 安装 PHP 扩展
+
+进入 1Panel「容器」→ 找到 PHP 容器（通常名为 `navmate-php`）→ 点击「终端」：
+
+```bash
+# 更新包源
+apt update
+
+# 安装必要的 PHP 扩展（以 PHP 8.4 为例，根据实际版本调整包名）
+apt install -y php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl \
+  php8.4-zip php8.4-fileinfo php8.4-gd php8.4-bcmath
+
+# 验证扩展是否加载
+php -m | grep -E 'pdo_mysql|mbstring|xml|curl|zip|fileinfo|gd'
+```
+
+> **必须包含 `pdo_mysql`**，否则数据库连接会失败。
 
 ### 5. 部署代码
 
+在 PHP 容器终端中操作：
+
 ```bash
-cd /opt/1panel/apps/openresty/navmate
+# 进入网站根目录（容器内路径，不是宿主机路径）
+cd /www/sites/navmate/index
 
-# 清空默认文件后克隆
-git clone https://github.com/yourname/navmate.git .
+# 如果是空目录，克隆项目
+git clone https://github.com/webrong/NavMate.git .
 
-# 安装依赖
+# 安装 PHP 依赖
 composer install --no-dev --optimize-autoloader
-npm install
-npm run build
+```
 
-# 环境配置
+> 如果服务器没有 Node.js，在本地执行 `npm install && npm run build`，然后将生成的 `public/build/` 目录上传到服务器。
+
+### 6. 环境配置
+
+继续在 PHP 容器终端中：
+
+```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-> 无需手动编辑数据库配置，安装向导会引导你填写。
-
-### 6. 设置权限
+### 7. 设置权限
 
 ```bash
-chown -R www:www /opt/1panel/apps/openresty/navmate
-chmod -R 755 storage bootstrap/cache
+# 容器内执行
+chmod -R 755 storage bootstrap/cache public/uploads
 ```
 
-### 7. 配置伪静态
+如果权限不对，也可在 1Panel「文件」管理器中右键网站目录设置权限为 **755**。
 
-在网站设置中找到「反向代理/伪静态」或 Nginx 配置，确保包含：
+### 8. 配置伪静态
+
+在 1Panel「网站」→ 点击站点名 →「反向代理/伪静态」或「Nginx 配置」，确保包含：
 
 ```nginx
 location / {
@@ -491,9 +506,35 @@ location / {
 }
 ```
 
-### 8. 完成
+### 9. 完成安装
 
-访问域名进入安装向导。
+访问域名进入安装向导：
+- **数据库主机**：填写 MySQL 容器名（如 `navmate-mysql`）或内网 IP
+- **数据库端口**：默认 `3306`
+- **缓存驱动**：如未安装 Redis，选择 **Database**
+- **Session 驱动**：同上，选择 **Database**
+
+> 安装向导会自动检测环境、创建数据表和管理员账号。
+
+### 常见问题
+
+**Q: 安装向导「下一步」按钮点击无效（页面刷新但不跳转）**
+- 浏览器控制台如显示 CSP（Content-Security-Policy）错误，请确保使用最新版本代码，已修复此问题。
+
+**Q: 连接数据库失败 `Access denied`**
+- 确认数据库用户有远程访问权限（1Panel MySQL 容器默认支持）。
+- 数据库主机应填写容器名或内网 IP，不要填 `localhost`。
+
+**Q: `Class "App\Services\PDO" not found`**
+- 容器内未安装 `pdo_mysql` 扩展，参考第 4 步安装。
+
+**Q: 1Panel 定时任务执行 Artisan 命令失败**
+- 1Panel 任务执行器会自动在命令前加 `composer` 前缀，导致命令错误。
+- 请直接在 PHP 容器终端中执行 Artisan 命令。
+
+**Q: 页面出现 500 错误**
+- 进入 PHP 容器终端执行 `php artisan config:clear` 清除配置缓存。
+- 检查 `.env` 文件中的 `DB_DATABASE` 等配置是否正确。
 
 ---
 
