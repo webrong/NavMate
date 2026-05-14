@@ -60,18 +60,8 @@ class FriendLinkController extends Controller
         ]);
 
         \DB::transaction(function () use ($request) {
-            $case = 'CASE id';
-            $ids = [];
             foreach ($request->ids as $i => $id) {
-                $case .= " WHEN {$id} THEN {$i}";
-                $ids[] = $id;
-            }
-            $case .= ' END';
-
-            if (!empty($ids)) {
-                FriendLink::whereIn('id', $ids)->update([
-                    'sort_order' => \DB::raw($case),
-                ]);
+                FriendLink::where('id', $id)->update(['sort_order' => $i]);
             }
         });
 

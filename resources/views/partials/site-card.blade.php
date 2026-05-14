@@ -4,7 +4,7 @@
             <div class="item-media">
                 @if($site->favicon_url)
                 <img src="{{ $site->favicon_url }}" alt="" class="fill-cover sites-icon" style="height: auto; width: auto;"
-                     onerror="var img=this;var host=encodeURIComponent(new URL('{{ $site->url }}').hostname);if(!img.dataset.retried){img.dataset.retried='1';img.src='https://t2.gstatic.cn/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=128&url=https://'+host;}else{var p=img.closest('.item-media');if(p){p.innerHTML='<div class=\'d-flex align-items-center justify-content-center rounded-2 bg-primary bg-gradient\' style=\'width:40px;height:40px;\'><span class=\'text-white fw-bold small\'>' + mb_substr('{{ $site->title }}', 0, 1) + '</span></div>';}}">
+                     data-fallback="{{ mb_substr($site->title, 0, 1) }}">
                 @else
                 <div class="d-flex align-items-center justify-content-center rounded-2 bg-primary bg-gradient" style="width: 40px; height: 40px;">
                     <span class="text-white fw-bold small">{{ mb_substr($site->title, 0, 1) }}</span>

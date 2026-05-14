@@ -29,9 +29,11 @@ request.interceptors.response.use(
                 const toast = useToastStore();
                 toast.error('登录已过期，请重新登录');
             });
-            if (window.location.pathname !== '/') {
-                window.location.href = '/?login=true';
-            }
+            import('../router').then(({ default: router }) => {
+                if (window.location.pathname !== '/') {
+                    router.push({ path: '/', query: { login: 'true' } });
+                }
+            });
             return Promise.reject(error);
         }
 

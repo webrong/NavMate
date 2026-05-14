@@ -68,11 +68,11 @@ Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middlewa
 Route::get('/api/settings', [SettingsController::class, 'publicSettings'])->middleware('throttle:60,1')->name('api.settings');
 Route::get('/api/friend-links', function () {
     return response()->json(\App\Models\FriendLink::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get());
-});
+})->middleware('throttle:60,1');
 
 Route::get('/api/ads', function () {
     return response()->json(\App\Models\Ad::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'title', 'image_url', 'link_url', 'position', 'target']));
-});
+})->middleware('throttle:60,1');
 
 // Auth API
 Route::get('/api/user', [ApiAuthController::class, 'me'])->name('api.user');

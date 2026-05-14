@@ -209,6 +209,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer);
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
   if (isFullscreen.value) document.exitFullscreen?.();
 });
 
@@ -223,10 +224,11 @@ function toggleFullscreen() {
 }
 
 // Listen for fullscreen exit (e.g. user presses Esc)
+function onFullscreenChange() {
+  if (!document.fullscreenElement) isFullscreen.value = false;
+}
 if (typeof document !== 'undefined') {
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) isFullscreen.value = false;
-  });
+  document.addEventListener('fullscreenchange', onFullscreenChange);
 }
 
 function getParams() {

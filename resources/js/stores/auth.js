@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', {
         user: null,
         initialized: false,
         loading: false,
+        _initPromise: null,
     }),
 
     getters: {
@@ -17,14 +18,18 @@ export const useAuthStore = defineStore('auth', {
 
     actions: {
         async init() {
-            try {
-                const { data } = await request.get('/api/user');
-                this.user = data && data.id ? data : null;
-            } catch {
-                this.user = null;
-            } finally {
-                this.initialized = true;
-            }
+            if (this._initPromise) return this._initPromise;
+            this._initPromise = (async () => {
+                try {
+                    const { data } = await request.get('/api/user');
+                    this.user = data && data.id ? data : null;
+                } catch {
+                    this.user = null;
+                } finally {
+                    this.initialized = true;
+                }
+            })();
+            return this._initPromise;
         },
 
         async login(email, password, remember = false) {

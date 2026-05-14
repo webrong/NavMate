@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Add performance indexes for high-frequency queries.
+     */
     public function up(): void
     {
         Schema::table('click_logs', function (Blueprint $table) {

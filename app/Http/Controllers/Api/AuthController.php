@@ -228,7 +228,7 @@ class AuthController extends Controller
 
         Log::info('用户更新资料', ['user_id' => $user->id, 'ip' => $request->ip()]);
 
-        return response()->json($user->fresh());
+        return response()->json($user->fresh()->only(['id', 'name', 'email', 'avatar']));
     }
 
     public function uploadAvatar(Request $request): JsonResponse
