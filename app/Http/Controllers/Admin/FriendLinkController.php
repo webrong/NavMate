@@ -59,7 +59,7 @@ class FriendLinkController extends Controller
             'ids.*' => 'integer|exists:friend_links,id',
         ]);
 
-        \DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request) {
             foreach ($request->ids as $i => $id) {
                 FriendLink::where('id', $id)->update(['sort_order' => $i]);
             }

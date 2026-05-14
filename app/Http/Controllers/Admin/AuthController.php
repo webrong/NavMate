@@ -63,7 +63,7 @@ class AuthController extends Controller
     {
         $admin = Auth::guard('admin')->user();
         if ($admin) {
-            return response()->json($admin);
+            return response()->json($admin->only(['id', 'name', 'email']));
         }
         return response()->json(null);
     }
