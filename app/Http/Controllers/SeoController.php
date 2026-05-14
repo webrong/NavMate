@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\Setting;
+use App\Models\Site;
 use Illuminate\Http\Response;
 
 class SeoController extends Controller
@@ -23,8 +23,12 @@ class SeoController extends Controller
 
         $siteUrl = config('app.url');
 
+        $lastModified = Site::max('updated_at')
+            ? Site::max('updated_at')->toIso8601String()
+            : now()->toIso8601String();
+
         return response()
-            ->view('seo.sitemap', compact('categories', 'siteUrl'))
+            ->view('seo.sitemap', compact('categories', 'siteUrl', 'lastModified'))
             ->header('Content-Type', 'application/xml');
     }
 

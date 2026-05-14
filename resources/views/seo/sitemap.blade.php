@@ -3,7 +3,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>{{ $siteUrl }}/</loc>
-        <lastmod>{{ now()->toIso8601String() }}</lastmod>
+        <lastmod>{{ $lastModified }}</lastmod>
         <changefreq>daily</changefreq>
         <priority>1.0</priority>
     </url>
@@ -23,7 +23,7 @@
     @foreach($categories as $category)
     <url>
         <loc>{{ $siteUrl }}/#category-{{ $category->id }}</loc>
-        <lastmod>{{ $category->updated_at?->toIso8601String() ?? $category->created_at?->toIso8601String() ?? now()->toIso8601String() }}</lastmod>
+        <lastmod>{{ $category->updated_at?->toIso8601String() ?? $category->created_at?->toIso8601String() ?? $lastModified }}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>

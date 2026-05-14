@@ -2,27 +2,23 @@ User-agent: *
 Disallow: /api/
 Disallow: /admin/
 Disallow: /install/
-Allow: /build/
-Allow: /static/
+Disallow: /favorites
+Disallow: /settings
+Disallow: /profile
+Disallow: /email/
+Disallow: /_ignition
 
-User-agent: Baiduspider
-Disallow: /api/
-Disallow: /admin/
-Disallow: /install/
-
-User-agent: bingbot
-Disallow: /api/
-Disallow: /admin/
-Disallow: /install/
+# Aggressive Chinese spiders - slow down
+User-agent: 360Spider
+Crawl-delay: 5
 
 User-agent: Sogou web spider
-Disallow: /api/
-Disallow: /admin/
-Disallow: /install/
+Crawl-delay: 5
 
-User-agent: 360Spider
-Disallow: /api/
-Disallow: /admin/
-Disallow: /install/
+User-agent: Sogou inst spider
+Crawl-delay: 5
+
+User-agent: Bytespider
+Crawl-delay: 3
 
 Sitemap: {{ $siteUrl }}/sitemap.xml
