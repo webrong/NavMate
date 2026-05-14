@@ -162,17 +162,17 @@ Route::prefix('admin/api')->middleware(['auth:admin'])->group(function () {
     Route::post('/settings/test-email', [SettingsController::class, 'testEmail'])->middleware('throttle:3,1')->name('admin.settings.test-email');
 
     // Friend Links
-        Route::get('/friend-links', [FriendLinkController::class, 'index'])->name('admin.friend-links.index');
-        Route::post('/friend-links', [FriendLinkController::class, 'store'])->name('admin.friend-links.store');
-        Route::put('/friend-links/{friendLink}', [FriendLinkController::class, 'update'])->name('admin.friend-links.update');
-        Route::delete('/friend-links/{friendLink}', [FriendLinkController::class, 'destroy'])->name('admin.friend-links.destroy');
+    Route::get('/friend-links', [FriendLinkController::class, 'index'])->name('admin.friend-links.index');
+    Route::post('/friend-links', [FriendLinkController::class, 'store'])->name('admin.friend-links.store');
+    Route::put('/friend-links/{friendLink}', [FriendLinkController::class, 'update'])->name('admin.friend-links.update');
+    Route::delete('/friend-links/{friendLink}', [FriendLinkController::class, 'destroy'])->name('admin.friend-links.destroy');
 
-        // Ads
-        Route::get('/ads', [AdController::class, 'index'])->name('admin.ads.index');
-        Route::post('/ads', [AdController::class, 'store'])->name('admin.ads.store');
-        Route::post('/ads/upload-image', [AdController::class, 'uploadImage'])->name('admin.ads.upload-image');
-        Route::put('/ads/{ad}', [AdController::class, 'update'])->name('admin.ads.update');
-        Route::delete('/ads/{ad}', [AdController::class, 'destroy'])->name('admin.ads.destroy');
+    // Ads
+    Route::get('/ads', [AdController::class, 'index'])->name('admin.ads.index');
+    Route::post('/ads', [AdController::class, 'store'])->name('admin.ads.store');
+    Route::post('/ads/upload-image', [AdController::class, 'uploadImage'])->name('admin.ads.upload-image');
+    Route::put('/ads/{ad}', [AdController::class, 'update'])->name('admin.ads.update');
+    Route::delete('/ads/{ad}', [AdController::class, 'destroy'])->name('admin.ads.destroy');
 
     // System
     Route::get('/system/info', [SystemController::class, 'info'])->name('admin.system.info');

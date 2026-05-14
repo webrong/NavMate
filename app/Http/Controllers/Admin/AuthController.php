@@ -47,7 +47,7 @@ class AuthController extends Controller
         Auth::guard('admin')->login($admin, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return response()->json(['message' => '登录成功', 'user' => $admin]);
+        return response()->json(['message' => '登录成功', 'user' => $admin->only(['id', 'name', 'email'])]);
     }
 
     public function logout(Request $request): JsonResponse

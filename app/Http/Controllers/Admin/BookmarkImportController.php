@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 class BookmarkImportController extends Controller
 {
     use ClearsDashboardCache;
+
     public function __construct(
         private BookmarkParserService $parser
     ) {}

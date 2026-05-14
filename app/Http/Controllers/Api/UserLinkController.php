@@ -10,6 +10,16 @@ use Illuminate\Http\Request;
 
 class UserLinkController extends Controller
 {
+    /**
+     * Verify the link belongs to the authenticated user.
+     */
+    private function authorizeOwnership(UserLink $link, Request $request): void
+    {
+        if ($link->user_id !== $request->user()->id) {
+            abort(403);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
         $links = $request->user()->links()->get();
@@ -44,9 +54,7 @@ class UserLinkController extends Controller
 
     public function update(Request $request, UserLink $link): JsonResponse
     {
-        if ($link->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorizeOwnership($link, $request);
 
         $data = $request->validate([
             'title' => 'sometimes|string|max:255',
@@ -62,9 +70,7 @@ class UserLinkController extends Controller
 
     public function destroy(Request $request, UserLink $link): JsonResponse
     {
-        if ($link->user_id !== $request->user()->id) {
-            abort(403);
-        }
+        $this->authorizeOwnership($link, $request);
 
         $link->delete();
 
@@ -75,7 +81,7 @@ class UserLinkController extends Controller
     {
         $data = $request->validate([
             'items' => 'required|array',
-            'items.*.id' => 'required|integer|exists:user_links,id',
+            'items.*.id' => 'required|integer',
             'items.*.sort_order' => 'required|integer',
         ]);
 

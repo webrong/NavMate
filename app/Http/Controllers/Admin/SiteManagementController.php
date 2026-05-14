@@ -14,6 +14,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class SiteManagementController extends Controller
 {
     use ClearsDashboardCache;
+
     public function data(Request $request): JsonResource
     {
         $query = Site::with('category');

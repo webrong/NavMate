@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 class CategoryController extends Controller
 {
     use ClearsDashboardCache;
+
     public function data(Request $request): JsonResponse
     {
         $query = Category::query()->withCount('sites');
