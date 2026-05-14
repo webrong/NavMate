@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Traits\ClearsDashboardCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class CategoryController extends Controller
 {
+    use ClearsDashboardCache;
     public function data(Request $request): JsonResponse
     {
         $query = Category::query()->withCount('sites');
@@ -134,12 +135,5 @@ class CategoryController extends Controller
     {
         $categories = Category::active()->ordered()->get();
         return response()->json(['code' => 0, 'data' => $categories]);
-    }
-
-    private function clearDashboardCache(): void
-    {
-        Cache::forget('dashboard:stats');
-        Cache::forget('dashboard:recent');
-        Cache::forget('dashboard:top');
     }
 }

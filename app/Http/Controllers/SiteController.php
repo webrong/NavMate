@@ -63,20 +63,19 @@ class SiteController extends Controller
             return response()->json(['success' => false], 404);
         }
 
-        // Deduplication: max 1 click per IP per site per hour
+        // Deduplication: max 1 click per IP per site per hour (counter + log)
         $dedupKey = 'click:' . $request->ip() . ':' . $site->id;
         if (!Cache::has($dedupKey)) {
             $site->increment('clicks');
             Cache::put($dedupKey, true, 3600); // 1 hour window
-        }
 
-        // Always log for analytics (but only increment counter once per window)
-        ClickLog::create([
-            'site_id' => $site->id,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'clicked_at' => now(),
-        ]);
+            ClickLog::create([
+                'site_id' => $site->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'clicked_at' => now(),
+            ]);
+        }
 
         return response()->json(['success' => true]);
     }
@@ -101,6 +100,9 @@ class SiteController extends Controller
                 if ($visitorToken) {
                     $query->orWhere('visitor_token', $visitorToken);
                 }
+            })
+            ->whereHas('category', function ($query) {
+                $query->where('is_active', true);
             })
             ->where(function ($query) use ($escaped) {
                 $query->where('title', 'like', "%{$escaped}%")

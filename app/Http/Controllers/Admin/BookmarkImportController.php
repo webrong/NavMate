@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\BookmarkParserService;
+use App\Traits\ClearsDashboardCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 
 class BookmarkImportController extends Controller
 {
+    use ClearsDashboardCache;
     public function __construct(
         private BookmarkParserService $parser
     ) {}
@@ -89,12 +91,5 @@ class BookmarkImportController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => '导入失败，请重试'], 500);
         }
-    }
-
-    private function clearDashboardCache(): void
-    {
-        Cache::forget('dashboard:stats');
-        Cache::forget('dashboard:recent');
-        Cache::forget('dashboard:top');
     }
 }

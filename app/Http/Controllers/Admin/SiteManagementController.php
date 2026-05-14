@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Site;
 use App\Services\UrlFetcherService;
+use App\Traits\ClearsDashboardCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Cache;
 
 class SiteManagementController extends Controller
 {
+    use ClearsDashboardCache;
     public function data(Request $request): JsonResource
     {
         $query = Site::with('category');
@@ -88,13 +89,6 @@ class SiteManagementController extends Controller
         $site->delete();
         $this->clearDashboardCache();
         return response()->json(['code' => 0, 'msg' => '删除成功']);
-    }
-
-    private function clearDashboardCache(): void
-    {
-        Cache::forget('dashboard:stats');
-        Cache::forget('dashboard:recent');
-        Cache::forget('dashboard:top');
     }
 
     public function fetchUrl(Request $request): JsonResponse

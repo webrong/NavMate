@@ -22,9 +22,12 @@ const router = createRouter({
   },
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   if (to.meta.auth) {
     const authStore = useAuthStore();
+    if (!authStore.initialized) {
+      await authStore.init();
+    }
     if (!authStore.isAuthenticated) {
       return { path: '/', query: { login: 'true' } };
     }

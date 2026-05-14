@@ -61,7 +61,7 @@ Route::get('/', function () {
 */
 
 Route::post('/api/fetch-url', [SiteController::class, 'fetchUrl'])->middleware('throttle:30,1')->name('api.fetch-url');
-Route::post('/api/quick-add', [SiteController::class, 'quickAdd'])->middleware('throttle:10,1')->name('api.quick-add');
+Route::post('/api/quick-add', [SiteController::class, 'quickAdd'])->middleware(['auth', 'throttle:10,1'])->name('api.quick-add');
 Route::post('/api/click', [SiteController::class, 'click'])->middleware('throttle:60,1')->name('api.click');
 Route::get('/api/search', [SiteController::class, 'search'])->middleware('throttle:60,1')->name('api.search');
 Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middleware('throttle:60,1')->name('api.categories');
