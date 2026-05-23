@@ -14,7 +14,7 @@ NavMate 是一个基于 Laravel 13 + Vue 3.5 的现代化网址导航系统，�
 |------|------|
 | PHP 8.3+ / Laravel 13.2 | Vue 3.5 + Vue Router 4 |
 | Laravel Sanctum（API 认证） | Pinia 3（状态管理） |
-| MySQL / SQLite | Tailwind CSS 4 |
+| MySQL 5.7.22+ / 8.0+ | Tailwind CSS 4 |
 | Redis（缓存/队列，可选） | Ant Design Vue（后台 UI） |
 | Vite 8（构建工具） | DOMPurify（XSS 防护） |
 
@@ -145,26 +145,85 @@ database/
 
 ## 环境要求
 
-- PHP >= 8.3（需启用 extensions：mbstring, xml, curl, mysqlnd/pdo_sqlite, zip, fileinfo）
-- MySQL 5.7.22+ / 8.0+ / SQLite 3
-- Node.js >= 18（仅构建时需要）
-- Composer 2
-- Nginx / Apache（生产环境）
-- Redis（可选，用于缓存/队列）
+| 项目 | 要求 |
+|------|------|
+| **PHP** | >= 8.3（8.3 / 8.4 均可） |
+| **必装扩展** | `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `curl`, `gd`, `fileinfo`, `zip` |
+| **可选扩展** | `redis`（使用 Redis 缓存时需要） |
+| **MySQL** | 5.7.22+ / 8.0+ |
+| **Node.js** | >= 18（仅构建前端时需要，服务器可不装） |
+| **Composer** | 2.x |
+| **Web 服务器** | Nginx / Apache |
+| **Redis** | 可选，用于缓存/队列 |
+
+> **关于前端构建**：项目使用 Vite 8 构建，需要在有 Node.js 的环境执行 `npm install && npm run build`。如果服务器没有 Node.js，可以在本地构建后将 `public/build/` 目录上传到服务器。
 
 ---
 
-## 部署方式一：Docker Compose（推荐）
+## 安装向导
+
+无论选择哪种部署方式，代码部署完成后首次访问网站都会自动进入安装向导，共 6 步：
+
+### 步骤 1：环境检测
+自动检测 PHP 版本、必装扩展、目录写权限。全部通过才能进入下一步。
+
+> 如果有红色未通过项，需要先在服务器上安装对应的扩展或修复权限。
+
+### 步骤 2：数据库配置
+填写 MySQL 连接信息：
+
+| 字段 | 说明 |
+|------|------|
+| 数据库主机 | MySQL 地址（Docker 环境填容器名，如 `1Panel-mysql-vMFs`） |
+| 数据库端口 | 默认 `3306` |
+| 数据库名 | 提前创建好的数据库名 |
+| 数据库用户 | 有该数据库权限的用户 |
+| 数据库密码 | 用户密码 |
+
+填写后点击「测试连接」，成功后可进入下一步。安装器会自动建表，**无需手动导入 SQL**。
+
+### 步骤 3：缓存配置
+选择缓存驱动：
+- **Database**（推荐）— 无需额外服务，适合大多数场景
+- **Redis** — 性能更好，但需要安装 Redis 服务和 PHP Redis 扩展
+- **File** — 最简单，但不适合生产环境
+
+### 步骤 4：站点与管理员
+设置站点名称、站点 URL、管理员邮箱、用户名和密码。
+
+### 步骤 5：邮件配置（可选）
+配置 SMTP 邮件服务（用于邮箱验证、密码找回等），也可跳过，后续在后台「系统设置」中配置。
+
+内置常见邮件预设（QQ 邮箱、163 邮箱、Gmail、Outlook 等），选择后自动填入服务器地址和端口。
+
+### 步骤 6：执行安装
+点击安装，自动执行数据库迁移、创建管理员、写入配置。安装完成后自动跳转到后台登录页。
+
+> 安装完成后会自动创建 `storage/app/installed` 标记文件，后续访问不再显示安装向导。
+
+---
+
+## 部署方式一：Docker Compose
 
 适合快速部署，无需手动安装 PHP/MySQL/Nginx。
 
-### 1. 创建 `docker-compose.yml`
+> **注意**：目前项目没有预构建的 Docker 镜像，需要自行构建。以下提供完整方案。
+
+### 1. 创建项目目录
+
+```bash
+mkdir -p /opt/navmate && cd /opt/navmate
+```
+
+### 2. 创建 `docker-compose.yml`
 
 ```yaml
 version: '3.8'
 services:
   app:
-    image: navmate/navmate:latest    # 或自行构建
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
     environment:
@@ -176,7 +235,7 @@ services:
       DB_DATABASE: navmate
       DB_USERNAME: navmate
       DB_PASSWORD: "your-strong-password"
-      CACHE_DRIVER: database
+      CACHE_STORE: database
       SESSION_DRIVER: database
       QUEUE_CONNECTION: database
     volumes:
@@ -208,24 +267,89 @@ volumes:
   mysql_data:
 ```
 
-### 2. 启动
+### 3. 创建 `Dockerfile`
+
+```dockerfile
+FROM composer:2 AS builder
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+FROM node:20-alpine AS frontend
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM php:8.3-apache
+WORKDIR /var/www/html
+
+# Install PHP extensions
+RUN apt-get update && apt-get install -y \
+    libpng-dev libjpeg-dev libfreetype6-dev libzip-dev libonig-dev libxml2-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql mbstring xml curl gd zip fileinfo bcmath \
+    && apt-get clean
+
+# Enable Apache rewrite module
+RUN a2enmod rewrite
+
+# Copy application files
+COPY . .
+COPY --from=builder /app/vendor ./vendor
+COPY --from=frontend /app/public/build ./public/build
+
+# Set permissions
+RUN chown -R www-data:www-data storage bootstrap/cache public/uploads \
+    && chmod -R 755 storage bootstrap/cache
+
+# Configure Apache document root
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# Setup entrypoint
+COPY --chmod=755 <<'EOF' /usr/local/bin/entrypoint.sh
+#!/bin/bash
+if [ ! -f .env ]; then
+    cp .env.example .env
+    php artisan key:generate --force
+fi
+php artisan config:cache
+apache2-foreground
+EOF
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+EXPOSE 80
+```
+
+### 4. 克隆代码并构建
 
 ```bash
+cd /opt/navmate
+git clone https://github.com/webrong/NavMate.git .
+docker compose build
 docker compose up -d
 ```
 
-### 3. 初始化
+### 5. 初始化
 
-访问 `http://your-ip:8080`，按安装向导完成数据库和管理员配置。
+访问 `http://your-ip:8080`，按安装向导完成配置。
 
-### 4. 升级
+- 数据库主机填写：`mysql`（Docker 服务名）
+- 缓存驱动选择：**Database**
+
+### 6. 升级
 
 ```bash
-docker compose pull
+cd /opt/navmate
+git pull
+docker compose build
 docker compose up -d
 ```
 
-> **注意：** Docker 部署不支持后台在线升级功能，请通过拉取新镜像方式更新。
+> Docker 部署不支持后台在线升级，需要通过重新构建镜像方式更新。
 
 ---
 
@@ -239,28 +363,35 @@ docker compose up -d
 # Ubuntu/Debian
 sudo apt update
 sudo apt install -y php8.3 php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-zip php8.3-fileinfo php8.3-gd nginx mysql-server
+  php8.3-curl php8.3-zip php8.3-fileinfo php8.3-gd php8.3-bcmath \
+  nginx mysql-server
 
 # CentOS/RHEL (Remi 仓库)
 sudo dnf install -y php83 php83-php-fpm php83-php-mysqlnd php83-php-mbstring \
-  php83-php-xml php83-php-curl php83-php-zip php83-php-gd nginx mysql-server
+  php83-php-xml php83-php-curl php83-php-zip php83-php-gd php83-php-bcmath \
+  nginx mysql-server
 ```
 
 ### 2. 克隆项目
 
 ```bash
 cd /var/www
-git clone https://github.com/yourname/navmate.git
+git clone https://github.com/webrong/NavMate.git navmate
 cd navmate
 ```
 
 ### 3. 安装依赖
 
 ```bash
+# PHP 依赖
 composer install --no-dev --optimize-autoloader
+
+# 前端构建（需要 Node.js >= 18）
 npm install
 npm run build
 ```
+
+> 如果服务器没有 Node.js，在本地电脑执行 `npm install && npm run build`，然后将 `public/build/` 目录上传到服务器。
 
 ### 4. 初始化
 
@@ -269,13 +400,13 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-> 数据库、Redis、邮件等配置无需手动编辑，首次访问时会进入安装向导，在网页上填写即可。
+> 数据库、Redis、邮件等配置无需手动编辑 `.env`，首次访问时会进入安装向导，在网页上填写即可。
 
 ### 5. 设置权限
 
 ```bash
 chown -R www-data:www-data /var/www/navmate
-chmod -R 755 storage bootstrap/cache
+chmod -R 755 storage bootstrap/cache public/uploads
 ```
 
 ### 6. 配置 Nginx
@@ -315,19 +446,50 @@ sudo ln -s /etc/nginx/sites-available/navmate /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 7. 完成
+### 7. 配置 HTTPS（推荐）
 
-访问 `https://nav.example.com` 进入安装向导，按提示完成数据库和管理员配置。
+```bash
+# 安装 certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# 获取并自动配置 SSL 证书
+sudo certbot --nginx -d nav.example.com
+
+# 自动续期（certbot 会自动添加定时任务）
+sudo certbot renew --dry-run
+```
+
+配置完成后 Nginx 会自动将 HTTP 重定向到 HTTPS。
+
+### 8. 配置定时任务
+
+Laravel 调度器需要系统 Cron 支持：
+
+```bash
+# 编辑 www-data 用户的 crontab
+sudo crontab -e -u www-data
+
+# 添加以下行（每分钟执行一次调度器）
+* * * * * cd /var/www/navmate && php artisan schedule:run >> /dev/null 2>&1
+```
+
+定时任务包括：点击日志自动清理（90天前）、数据统计等。
+
+### 9. 完成
+
+访问 `https://nav.example.com` 进入安装向导，按提示完成。
 
 ### 在线升级
 
-在后台「系统管理 → 在线更新」页面可一键升级。需在 `.env` 中配置：
+传统部署支持后台一键升级。在 `.env` 中配置更新源：
 
 ```env
-UPDATE_GITHUB_REPO=yourname/navmate
-# 或自定义更新源
-# UPDATE_CUSTOM_SOURCE=https://example.com/version.json
+UPDATE_GITHUB_REPO=webrong/NavMate
 ```
+
+然后在后台「系统管理 → 系统升级」页面点击「检查更新」即可。
+
+> 升级流程：自动备份 → 下载新版本 → 校验 → 解压替换 → 运行迁移 → 清理缓存。全程有日志记录，支持回滚。
 
 ---
 
@@ -346,15 +508,31 @@ curl -sSO https://raw.githubusercontent.com/zhucaidan/btpanel-v7.7.0/main/instal
 
 在「软件商店」中安装：
 - **Nginx** 1.24+
-- **PHP-8.3**（安装后点击「设置 → 安装扩展」，确保 `fileinfo`、`mbstring`、`openssl`、`pdo_mysql`、`tokenizer`、`xml`、`curl`、`zip`、`gd` 已启用）
-- **MySQL** 8.0（或 5.7）
+- **PHP-8.3** 或 **PHP-8.4**
+- **MySQL** 5.7 或 8.0
+
+安装 PHP 后，点击 PHP 版本旁的「设置」→「安装扩展」，确保以下扩展全部启用：
+
+| 必装扩展 | 说明 |
+|---------|------|
+| `fileinfo` | 文件类型检测 |
+| `mbstring` | 多字节字符串 |
+| `openssl` | 加密 |
+| `pdo_mysql` | MySQL 驱动（**关键**） |
+| `tokenizer` | PHP 解析 |
+| `xml` | XML 处理 |
+| `curl` | HTTP 请求 |
+| `zip` | 压缩 |
+| `gd` | 图片处理 |
+
+> 如果列表中显示「已安装」则跳过，未安装的点击「安装」。
 
 ### 3. 创建网站
 
 1. 「网站」→「添加站点」
    - 域名：`nav.example.com`
-   - PHP 版本：**PHP-83**
-   - 数据库：**MySQL**，数据库名和密码记下来
+   - PHP 版本：**PHP-83** 或 **PHP-84**
+   - 数据库：**MySQL**，创建一个数据库，记下名称和密码
    - 不要勾选「创建 FTP」
 
 ### 4. 部署代码
@@ -366,19 +544,24 @@ cd /www/wwwroot/nav.example.com
 rm -rf *
 
 # 克隆项目
-git clone https://github.com/yourname/navmate.git .
+git clone https://github.com/webrong/NavMate.git .
 ```
 
 ### 5. 安装依赖
 
+**方案 A：服务器有 Node.js（宝塔软件商店可安装 Node.js 版本管理器）**
+
 ```bash
-# 如果服务器有 Node.js
 composer install --no-dev --optimize-autoloader
 npm install
 npm run build
-
-# 如果没有 Node.js，在本地构建后上传 public/build/ 目录
 ```
+
+**方案 B：服务器没有 Node.js**
+
+1. 在本地电脑克隆项目
+2. 执行 `npm install && npm run build`
+3. 将生成的 `public/build/` 目录上传到服务器的 `/www/wwwroot/nav.example.com/public/build/`
 
 ### 6. 配置环境
 
@@ -399,12 +582,12 @@ php artisan key:generate
 
 ```bash
 chown -R www:www /www/wwwroot/nav.example.com
-chmod -R 755 storage bootstrap/cache
+chmod -R 755 storage bootstrap/cache public/uploads
 ```
 
 ### 8. 配置 Nginx 伪静态
 
-在宝塔「网站」→ 点击站点名 →「伪静态」，粘贴：
+在宝塔「网站」→ 点击站点名 →「设置」→ 左侧菜单「伪静态」，粘贴：
 
 ```nginx
 location / {
@@ -414,9 +597,31 @@ location / {
 
 保存即可。
 
-### 9. 完成
+### 9. 配置定时任务
 
-访问域名进入安装向导，按提示完成。
+宝塔「计划任务」→「添加任务」：
+- 任务类型：**Shell 脚本**
+- 任务名称：`NavMate 调度器`
+- 执行周期：**N 分钟 1 分钟**
+- 脚本内容：
+
+```bash
+cd /www/wwwroot/nav.example.com && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### 10. 配置 SSL
+
+宝塔「网站」→ 点击站点名 →「设置」→ 左侧菜单「SSL」：
+- 选择「Let's Encrypt」
+- 勾选域名
+- 点击「申请」
+- 开启「强制 HTTPS」
+
+### 11. 完成
+
+访问域名进入安装向导：
+- 数据库主机：`127.0.0.1`
+- 数据库名/用户/密码：第 3 步创建的数据库信息
 
 ---
 
@@ -442,14 +647,14 @@ curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_
 
 「网站」→「创建网站」→ 选择「运行环境」：
 - 主域名：`nav.example.com`
-- 运行环境：**PHP 8.4**（如无此选项，选 8.3 并在容器中升级）
+- 运行环境：**PHP 8.4**（如无此选项，选 8.3）
 - 根目录保持默认即可
 
 > 1Panel 会自动创建 PHP 容器和 OpenResty 反向代理配置。
 
 ### 4. 安装 PHP 扩展
 
-进入 1Panel「容器」→ 找到 PHP 容器（通常名为 `navmate-php`）→ 点击「终端」：
+进入 1Panel「容器」→ 找到 PHP 容器（名称通常包含网站域名）→ 点击「终端」：
 
 ```bash
 # 更新包源
@@ -463,14 +668,14 @@ apt install -y php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl \
 php -m | grep -E 'pdo_mysql|mbstring|xml|curl|zip|fileinfo|gd'
 ```
 
-> **必须包含 `pdo_mysql`**，否则数据库连接会失败。
+> **必须包含 `pdo_mysql`**，否则安装向导检测不通过或数据库连接失败。
 
 ### 5. 部署代码
 
 在 PHP 容器终端中操作：
 
 ```bash
-# 进入网站根目录（容器内路径，不是宿主机路径）
+# 进入网站根目录（注意：这是容器内路径，不是宿主机路径）
 cd /www/sites/navmate/index
 
 # 如果是空目录，克隆项目
@@ -480,7 +685,9 @@ git clone https://github.com/webrong/NavMate.git .
 composer install --no-dev --optimize-autoloader
 ```
 
-> 如果服务器没有 Node.js，在本地执行 `npm install && npm run build`，然后将生成的 `public/build/` 目录上传到服务器。
+> 如果容器内没有 Node.js，在本地执行 `npm install && npm run build`，然后将 `public/build/` 上传到容器内的 `/www/sites/navmate/index/public/build/`。
+
+> **容器路径说明**：1Panel 容器内的网站路径通常是 `/www/sites/{网站名}/index`，而不是宿主机的 `/opt/1panel/...` 路径。所有 Artisan 命令都应在容器终端中执行。
 
 ### 6. 环境配置
 
@@ -502,7 +709,7 @@ chmod -R 755 storage bootstrap/cache public/uploads
 
 ### 8. 配置伪静态
 
-在 1Panel「网站」→ 点击站点名 →「反向代理/伪静态」或「Nginx 配置」，确保包含：
+在 1Panel「网站」→ 点击站点名 →「网站设置」→ 找到「反向代理/伪静态」或「Nginx 配置」，确保包含：
 
 ```nginx
 location / {
@@ -510,35 +717,61 @@ location / {
 }
 ```
 
-### 9. 完成安装
+### 9. 配置 SSL
+
+在 1Panel「网站」→ 点击站点名 →「网站设置」→「HTTPS」：
+- 选择「申请证书」（Let's Encrypt 或其他）
+- 申请后开启「强制 HTTPS」
+
+### 10. 完成安装
 
 访问域名进入安装向导：
-- **数据库主机**：填写 MySQL 容器名（如 `navmate-mysql`）或内网 IP
-- **数据库端口**：默认 `3306`
-- **缓存驱动**：如未安装 Redis，选择 **Database**
-- **Session 驱动**：同上，选择 **Database**
+
+| 字段 | 填写说明 |
+|------|---------|
+| **数据库主机** | 填写 MySQL 容器名（在 1Panel「容器」列表中查看，类似 `1Panel-mysql-vMFs`）或 MySQL 容器的内网 IP。**不要填 `localhost` 或 `127.0.0.1`** |
+| **数据库端口** | `3306` |
+| **缓存驱动** | 如未安装 Redis，选择 **Database** |
+| **Session 驱动** | 同上，选择 **Database** |
 
 > 安装向导会自动检测环境、创建数据表和管理员账号。
+
+### 11. 配置定时任务
+
+1Panel「计划任务」→「创建计划任务」：
+- 任务类型：**Shell 脚本**
+- 任务名称：`NavMate 调度器`
+- 执行周期：**每 1 分钟**
+- 脚本内容：
+
+```bash
+docker exec navmate-php php /www/sites/navmate/index/artisan schedule:run >> /dev/null 2>&1
+```
+
+> 将 `navmate-php` 替换为你的 PHP 容器名。可在 1Panel「容器」列表中查看。
 
 ### 常见问题
 
 **Q: 安装向导「下一步」按钮点击无效（页面刷新但不跳转）**
-- 浏览器控制台如显示 CSP（Content-Security-Policy）错误，请确保使用最新版本代码，已修复此问题。
+- 使用最新版本代码即可，此问题已在代码中修复。
 
 **Q: 连接数据库失败 `Access denied`**
 - 确认数据库用户有远程访问权限（1Panel MySQL 容器默认支持）。
-- 数据库主机应填写容器名或内网 IP，不要填 `localhost`。
+- 数据库主机应填写 MySQL 容器名或内网 IP，不要填 `localhost`。
 
 **Q: `Class "App\Services\PDO" not found`**
 - 容器内未安装 `pdo_mysql` 扩展，参考第 4 步安装。
 
 **Q: 1Panel 定时任务执行 Artisan 命令失败**
 - 1Panel 任务执行器会自动在命令前加 `composer` 前缀，导致命令错误。
-- 请直接在 PHP 容器终端中执行 Artisan 命令。
+- 请直接在 PHP 容器终端中执行 Artisan 命令，或使用 `docker exec` 方式。
 
 **Q: 页面出现 500 错误**
 - 进入 PHP 容器终端执行 `php artisan config:clear` 清除配置缓存。
 - 检查 `.env` 文件中的 `DB_DATABASE` 等配置是否正确。
+
+**Q: 如何在 1Panel 中找到 MySQL 容器名？**
+- 1Panel 面板 →「容器」→ 找到名称中包含 `mysql` 的容器，复制名称即可。
 
 ---
 
