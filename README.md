@@ -176,11 +176,13 @@ database/
 |------|------|
 | 数据库主机 | MySQL 地址（Docker 环境填容器名，如 `1Panel-mysql-vMFs`） |
 | 数据库端口 | 默认 `3306` |
-| 数据库名 | 提前创建好的数据库名 |
+| 数据库名 | 数据库名称（如果不存在，安装器会自动创建） |
 | 数据库用户 | 有该数据库权限的用户 |
 | 数据库密码 | 用户密码 |
 
-填写后点击「测试连接」，成功后可进入下一步。安装器会自动建表，**无需手动导入 SQL**。
+填写后点击「测试连接」，成功后可进入下一步。
+
+> 安装器会自动创建数据库（如不存在）、执行全部迁移建表、创建管理员账号。**无需手动导入 SQL 或运行 `php artisan migrate`**。
 
 ### 步骤 3：缓存配置
 选择缓存驱动：
@@ -316,7 +318,10 @@ if [ ! -f .env ]; then
     cp .env.example .env
     php artisan key:generate --force
 fi
-php artisan config:cache
+# Only cache config if already installed (install wizard writes .env and needs fresh config)
+if [ -f storage/app/installed ]; then
+    php artisan config:cache
+fi
 apache2-foreground
 EOF
 
@@ -338,6 +343,7 @@ docker compose up -d
 访问 `http://your-ip:8080`，按安装向导完成配置。
 
 - 数据库主机填写：`mysql`（Docker 服务名）
+- 数据库名填写：`navmate`（docker-compose.yml 中 MYSQL_DATABASE 已自动创建）
 - 缓存驱动选择：**Database**
 
 ### 6. 升级
@@ -393,7 +399,23 @@ npm run build
 
 > 如果服务器没有 Node.js，在本地电脑执行 `npm install && npm run build`，然后将 `public/build/` 目录上传到服务器。
 
-### 4. 初始化
+### 4. 创建数据库
+
+```bash
+# 登录 MySQL
+sudo mysql
+
+# 创建数据库和用户
+CREATE DATABASE navmate CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'navmate'@'localhost' IDENTIFIED BY 'your-strong-password';
+GRANT ALL PRIVILEGES ON navmate.* TO 'navmate'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+> 也可以跳过此步，安装向导会自动创建数据库（需 MySQL 用户有 CREATE DATABASE 权限）。
+
+### 5. 初始化
 
 ```bash
 cp .env.example .env
@@ -401,15 +423,16 @@ php artisan key:generate
 ```
 
 > 数据库、Redis、邮件等配置无需手动编辑 `.env`，首次访问时会进入安装向导，在网页上填写即可。
+> **不要运行 `php artisan migrate`**，安装向导会自动执行数据库迁移。
 
-### 5. 设置权限
+### 6. 设置权限
 
 ```bash
 chown -R www-data:www-data /var/www/navmate
 chmod -R 755 storage bootstrap/cache public/uploads
 ```
 
-### 6. 配置 Nginx
+### 7. 配置 Nginx
 
 创建 `/etc/nginx/sites-available/navmate`：
 
@@ -446,7 +469,7 @@ sudo ln -s /etc/nginx/sites-available/navmate /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 7. 配置 HTTPS（推荐）
+### 8. 配置 HTTPS（推荐）
 
 ```bash
 # 安装 certbot
@@ -461,7 +484,7 @@ sudo certbot renew --dry-run
 
 配置完成后 Nginx 会自动将 HTTP 重定向到 HTTPS。
 
-### 8. 配置定时任务
+### 9. 配置定时任务
 
 Laravel 调度器需要系统 Cron 支持：
 
@@ -475,7 +498,7 @@ sudo crontab -e -u www-data
 
 定时任务包括：点击日志自动清理（90天前）、数据统计等。
 
-### 9. 完成
+### 10. 完成
 
 访问 `https://nav.example.com` 进入安装向导，按提示完成。
 
