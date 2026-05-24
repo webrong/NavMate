@@ -56,6 +56,9 @@ class CategoryController extends Controller
             return response()->json(['message' => '无效的父级分类'], 422);
         }
 
+        // Remove null values so database defaults apply (icon, sort_order, etc.)
+        $data = array_filter($data, fn($v) => $v !== null);
+
         try {
             $category = Category::create($data);
             $this->clearDashboardCache();
@@ -96,7 +99,7 @@ class CategoryController extends Controller
             }
         }
 
-        $category->update($data);
+        $category->update(array_filter($data, fn($v) => $v !== null));
         $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '更新成功']);
