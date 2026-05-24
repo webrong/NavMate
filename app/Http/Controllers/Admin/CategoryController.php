@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Traits\ClearsDashboardCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CategoryController extends Controller
 {
@@ -36,7 +37,7 @@ class CategoryController extends Controller
     {
         $children = $all->where('parent_id', $parent->id)->values();
         $children->each(fn($c) => $this->buildChildren($c, $all));
-        $parent->setAttribute('children', $children->isEmpty() ? null : $children->all());
+        $parent->setAttribute('children', $children->values()->all());
     }
 
     public function store(Request $request): JsonResponse
@@ -55,8 +56,19 @@ class CategoryController extends Controller
             return response()->json(['message' => '无效的父级分类'], 422);
         }
 
-        $category = Category::create($data);
-        $this->clearDashboardCache();
+        try {
+            $category = Category::create($data);
+            $this->clearDashboardCache();
+        } catch (\Throwable $e) {
+            Log::error('Category create failed', [
+                'error' => $e->getMessage(),
+                'data' => $data,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => '创建失败: ' . $e->getMessage(),
+            ], 500);
+        }
 
         return response()->json(['code' => 0, 'msg' => '添加成功', 'data' => $category]);
     }

@@ -103,7 +103,7 @@ const form = reactive({
   icon: '',
   sort_order: 0,
   is_active: true,
-  parent_id: null,
+  parent_id: undefined,
 });
 
 const columns = [
@@ -169,7 +169,7 @@ function handleSearch(val) {
 function openCreate() {
   editingId.value = null;
   slugManuallyEdited = false;
-  Object.assign(form, { name: '', slug: '', description: '', icon: '', sort_order: 0, is_active: true, parent_id: null });
+  Object.assign(form, { name: '', slug: '', description: '', icon: '', sort_order: 0, is_active: true, parent_id: undefined });
   modalVisible.value = true;
 }
 
@@ -183,7 +183,7 @@ function openEdit(record) {
     icon: record.icon || '',
     sort_order: record.sort_order || 0,
     is_active: record.is_active,
-    parent_id: record.parent_id,
+    parent_id: record.parent_id ?? undefined,
   });
   modalVisible.value = true;
 }
