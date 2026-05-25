@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-title" @click.self="$emit('close')">
+  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="forgot-modal-title">
     <div class="auth-modal">
       <button class="auth-modal-close" @click="$emit('close')" aria-label="关闭">&times;</button>
       <h3 id="forgot-modal-title" class="auth-modal-title">忘记密码</h3>

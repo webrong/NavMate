@@ -1,12 +1,12 @@
 <template>
-  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" @click.self="$emit('close')">
+  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
     <div class="auth-modal">
       <button class="auth-modal-close" @click="$emit('close')" aria-label="关闭">&times;</button>
       <h3 id="login-modal-title" class="auth-modal-title">登录</h3>
       <form @submit.prevent="submit">
         <div class="auth-field">
-          <label>邮箱</label>
-          <input v-model="email" type="email" placeholder="请输入邮箱" required autocomplete="email" />
+          <label>用户名</label>
+          <input v-model="username" type="text" placeholder="请输入用户名或邮箱" required autocomplete="username" />
         </div>
         <div class="auth-field">
           <label>密码</label>
@@ -19,10 +19,6 @@
           </div>
         </div>
         <div v-if="error" class="auth-error">{{ error }}</div>
-        <div v-if="unverifiedEmail" class="auth-warning">
-          邮箱未验证，<a href="#" @click.prevent="resendVerification">重新发送验证邮件</a>
-          <span v-if="resendSent" class="auth-warning-sent">✓ 已发送</span>
-        </div>
         <div class="auth-forgot">
           <a href="#" @click.prevent="$emit('switch-to-forgot-password')">忘记密码？</a>
         </div>
@@ -47,37 +43,21 @@ const emit = defineEmits(['close', 'switch-to-register', 'switch-to-forgot-passw
 
 const authStore = useAuthStore();
 const toast = useToastStore();
-const email = ref('');
+const username = ref('');
 const password = ref('');
 const error = ref('');
 const showPassword = ref(false);
-const unverifiedEmail = ref('');
-const resendSent = ref(false);
 
 async function submit() {
   error.value = '';
-  unverifiedEmail.value = '';
-  const result = await authStore.login(email.value, password.value);
+  const result = await authStore.login(username.value, password.value);
   if (result.success) {
-    email.value = '';
+    username.value = '';
     password.value = '';
     toast.success('登录成功');
     emit('close');
   } else {
     error.value = result.message;
-    if (result.unverified && result.email) {
-      unverifiedEmail.value = result.email;
-    }
-  }
-}
-
-async function resendVerification() {
-  if (!unverifiedEmail.value) return;
-  const result = await authStore.resendVerification(unverifiedEmail.value);
-  if (result.success) {
-    resendSent.value = true;
-    toast.success('验证邮件已发送');
-    setTimeout(() => { resendSent.value = false; }, 3000);
   }
 }
 </script>

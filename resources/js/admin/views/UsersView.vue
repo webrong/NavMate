@@ -8,9 +8,13 @@
       <a-table :dataSource="store.items" :columns="columns" :loading="store.loading" :pagination="pagination" @change="handleTableChange" row-key="id" size="middle">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'is_admin'">
-            <a-popconfirm title="确认切换管理员权限？" @confirm="toggleAdmin(record)">
-              <a-switch v-model:checked="record.is_admin" :disabled="record.id === currentUserId" />
-            </a-popconfirm>
+            <a-tag
+              :color="record.is_admin ? 'blue' : 'default'"
+              style="cursor: pointer"
+              @click="onAdminSwitchClick(record)"
+            >
+              {{ record.is_admin ? '管理员' : '普通用户' }}
+            </a-tag>
           </template>
           <template v-if="column.key === 'created_at'">
             {{ formatDate(record.created_at) }}
@@ -27,8 +31,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { message } from 'antdv-next';
+import { ref, computed, onMounted, createVNode } from 'vue';
+import { message, Modal } from 'antdv-next';
 import { useAdminUsersStore } from '../stores/adminUsers';
 import { useAdminAuthStore } from '../stores/adminAuth';
 
@@ -66,9 +70,21 @@ function handleTableChange(pag) {
   store.fetchList({ page: pag.current, limit: pag.pageSize });
 }
 
+function onAdminSwitchClick(record) {
+  if (record.id === currentUserId.value) return;
+  const action = record.is_admin ? '取消' : '设为';
+  Modal.confirm({
+    title: `确认${action}管理员？`,
+    content: `将${action} ${record.name} 的管理员权限`,
+    okText: '确定',
+    cancelText: '取消',
+    onOk: () => toggleAdmin(record),
+  });
+}
+
 async function toggleAdmin(record) {
   try {
-    await store.update(record.id, { is_admin: record.is_admin });
+    await store.update(record.id, { is_admin: !record.is_admin });
     message.success('更新成功');
     store.fetchList();
   } catch {

@@ -48,25 +48,30 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
+        // Auto login after registration
+        Auth::login($user);
+        $request->session()->regenerate();
+
         Log::info('用户注册', ['user_id' => $user->id, 'email' => $user->email, 'ip' => $request->ip()]);
 
-        return response()->json([
-            'message' => '注册成功，请查收验证邮件后登录',
-            'email' => $user->email,
-        ], 201);
+        return response()->json($user, 201);
     }
 
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
+        $data = $request->validate([
+            'login' => 'required|string',
             'password' => 'required',
         ]);
 
-        $email = $credentials['email'];
+        $login = $data['login'];
 
-        // Login throttling: max 5 failures per 5 minutes per email+IP
-        $throttleKey = 'login:' . $email . ':' . $request->ip();
+        // Determine if login field is email or username
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
+        $credentials = [$field => $login, 'password' => $data['password']];
+
+        // Login throttling: max 5 failures per 5 minutes per login+IP
+        $throttleKey = 'login:' . $login . ':' . $request->ip();
         $ipKey = 'login_ip:' . $request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
@@ -82,10 +87,10 @@ class AuthController extends Controller
         }
 
         if (!Auth::attempt($credentials, $request->boolean('remember'))) {
-            RateLimiter::hit($throttleKey, 300); // 5 minutes decay
+            RateLimiter::hit($throttleKey, 300);
             RateLimiter::hit($ipKey, 300);
             Log::info('登录失败', ['ip' => $request->ip()]);
-            return response()->json(['message' => '邮箱或密码错误'], 422);
+            return response()->json(['message' => '用户名或密码错误'], 422);
         }
 
         // Clear throttle on success
@@ -93,17 +98,6 @@ class AuthController extends Controller
         RateLimiter::clear($ipKey);
 
         $user = $request->user();
-
-        // Check email verification
-        if (!$user->hasVerifiedEmail()) {
-            Auth::logout();
-            $request->session()->invalidate();
-            return response()->json([
-                'message' => '请先验证邮箱后再登录',
-                'unverified' => true,
-                'email' => $user->email,
-            ], 403);
-        }
 
         $request->session()->regenerate();
 

@@ -32,18 +32,15 @@ export const useAuthStore = defineStore('auth', {
             return this._initPromise;
         },
 
-        async login(email, password, remember = false) {
+        async login(login, password, remember = false) {
             this.loading = true;
             try {
-                const { data } = await request.post('/api/login', { email, password, remember });
+                const { data } = await request.post('/api/login', { login, password, remember });
                 this.user = data;
                 return { success: true };
             } catch (e) {
-                const response = e.response;
-                const message = response?.data?.message || '登录失败';
-                const unverified = response?.data?.unverified === true;
-                const unverifiedEmail = response?.data?.email || '';
-                return { success: false, message, unverified, unverifiedEmail };
+                const message = e.response?.data?.message || '登录失败';
+                return { success: false, message };
             } finally {
                 this.loading = false;
             }
@@ -58,7 +55,8 @@ export const useAuthStore = defineStore('auth', {
                     password,
                     password_confirmation: passwordConfirmation,
                 });
-                return { success: true, message: data.message, email: data.email };
+                this.user = data;
+                return { success: true };
             } catch (e) {
                 const message = e.response?.data?.message || Object.values(e.response?.data?.errors || {}).flat().join(' ') || '注册失败';
                 return { success: false, message };

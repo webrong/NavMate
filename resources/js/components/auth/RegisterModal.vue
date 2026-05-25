@@ -1,20 +1,11 @@
 <template>
-  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="register-modal-title" @click.self="$emit('close')">
+  <div v-if="visible" class="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
     <div class="auth-modal">
       <button class="auth-modal-close" @click="$emit('close')" aria-label="关闭">&times;</button>
       <h3 id="register-modal-title" class="auth-modal-title">注册</h3>
 
-      <!-- Success state after registration -->
-      <div v-if="registered" class="auth-success">
-        <p>注册成功！验证邮件已发送到 <strong>{{ registeredEmail }}</strong></p>
-        <p>请检查您的收件箱（包括垃圾邮件）。如果没有收到，请点击下方"重新发送"。</p>
-        <div style="margin-top: 12px;">
-          <a href="#" @click.prevent="resendVerification" style="color: var(--theme-color);">重新发送验证邮件</a>
-        </div>
-      </div>
-
       <!-- Registration form -->
-      <form v-else @submit.prevent="submit">
+      <form @submit.prevent="submit">
         <div class="auth-field">
           <label>用户名</label>
           <input v-model="name" type="text" placeholder="请输入用户名" required @blur="touched.name = true" />
@@ -55,7 +46,7 @@ import { useToastStore } from '../../stores/toast';
 import PasswordStrength from '../PasswordStrength.vue';
 
 defineProps({ visible: Boolean });
-defineEmits(['close', 'switch-to-login']);
+const emit = defineEmits(['close', 'switch-to-login']);
 
 const authStore = useAuthStore();
 const toast = useToastStore();
@@ -65,8 +56,6 @@ const password = ref('');
 const passwordConfirmation = ref('');
 const error = ref('');
 const loading = ref(false);
-const registered = ref(false);
-const registeredEmail = ref('');
 const touched = reactive({ name: false, email: false, password: false, confirm: false });
 
 const nameError = computed(() => {
@@ -110,21 +99,10 @@ async function submit() {
   const result = await authStore.register(name.value, email.value, password.value, passwordConfirmation.value);
   loading.value = false;
   if (result.success) {
-    registeredEmail.value = email.value;
-    registered.value = true;
-    toast.success('注册成功，请查收验证邮件');
+    toast.success('注册成功');
+    emit('close');
   } else {
     error.value = result.message;
-  }
-}
-
-async function resendVerification() {
-  if (!registeredEmail.value) return;
-  const result = await authStore.resendVerification(registeredEmail.value);
-  if (result.success) {
-    toast.success('验证邮件已重新发送');
-  } else {
-    toast.error(result.message);
   }
 }
 </script>
