@@ -49,7 +49,7 @@
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑站点' : '新增站点'" @ok="handleSubmit" :confirm-loading="submitting" width="600px">
       <a-form :model="form" layout="vertical" style="margin-top:16px">
         <a-form-item label="URL" required>
-          <a-input-search v-model:value="form.url" placeholder="https://example.com" enter-button="抓取信息" :search="handleFetchUrl" :loading="fetchingUrl" />
+          <a-input-search v-model:value="form.url" placeholder="https://example.com" enter-button="抓取信息" @search="handleFetchUrl" :loading="fetchingUrl" />
         </a-form-item>
         <a-form-item label="标题" required>
           <a-input v-model:value="form.title" placeholder="站点名称" />
