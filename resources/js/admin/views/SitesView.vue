@@ -178,7 +178,7 @@ async function handleFetchUrl() {
   if (!form.url) { message.warning('请先输入URL'); return; }
   fetchingUrl.value = true;
   try {
-    const { data } = await store.fetchUrl(form.url);
+    const data = await store.fetchUrl(form.url);
     if (data.title) form.title = data.title;
     if (data.favicon_url) form.favicon_url = data.favicon_url;
     message.success('抓取成功');
