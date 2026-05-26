@@ -59,6 +59,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useCategoryStore } from '../stores/categories';
+import { useLayoutStore } from '../stores/layout';
 import { useSearchStore } from '../stores/search';
 import { useAdsStore } from '../stores/ads';
 import ContentSection from '../components/ContentSection.vue';
@@ -67,6 +68,7 @@ import UserQuickLinks from '../components/UserQuickLinks.vue';
 import AdBanner from '../components/AdBanner.vue';
 
 const store = useCategoryStore();
+const layoutStore = useLayoutStore();
 const searchStore = useSearchStore();
 const adsStore = useAdsStore();
 
@@ -84,7 +86,29 @@ function getContentAd(idx) {
   return ads[(Math.floor((idx + 1) / AD_INTERVAL) - 1) % ads.length];
 }
 
-const categories = computed(() => store.categories);
+const categories = computed(() => {
+  const all = store.categories;
+  if (!layoutStore.loaded || layoutStore.data.length === 0) return all;
+
+  const layoutMap = {};
+  layoutStore.data.forEach(item => {
+    layoutMap[item.category_id] = item;
+  });
+
+  // Filter visible and apply user sort_order
+  const result = all
+    .filter(cat => {
+      const layout = layoutMap[cat.id];
+      return !layout || layout.visible !== false;
+    })
+    .map(cat => {
+      const layout = layoutMap[cat.id];
+      return { ...cat, _sort: layout ? layout.sort_order : 999 };
+    })
+    .sort((a, b) => a._sort - b._sort);
+
+  return result;
+});
 const loading = computed(() => store.loading);
 const error = computed(() => store.error);
 const searchResults = computed(() => searchStore.searchResults);
