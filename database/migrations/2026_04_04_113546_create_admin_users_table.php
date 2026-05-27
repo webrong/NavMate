@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Hash;
 
 return new class extends Migration
 {
@@ -25,7 +24,7 @@ return new class extends Migration
             \App\Models\AdminUser::create([
                 'name' => 'Admin',
                 'email' => env('ADMIN_DEFAULT_EMAIL', 'admin@navigation.com'),
-                'password' => Hash::make($password),
+                'password' => $password,
                 'email_verified_at' => now(),
             ]);
         }

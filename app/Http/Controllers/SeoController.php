@@ -23,8 +23,9 @@ class SeoController extends Controller
 
         $siteUrl = config('app.url');
 
-        $lastModified = Site::max('updated_at')
-            ? Site::max('updated_at')->toIso8601String()
+        $maxUpdated = Site::max('updated_at');
+        $lastModified = $maxUpdated
+            ? (new \Carbon\Carbon($maxUpdated))->toIso8601String()
             : now()->toIso8601String();
 
         return response()

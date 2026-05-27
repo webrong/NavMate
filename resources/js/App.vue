@@ -67,7 +67,7 @@ Promise.all([
   authStore.init(),
   siteSettings.fetchSettings(),
   adsStore.fetchAds(),
-]);
+]).catch(() => {});
 
 const showSearch = computed(() => route.path === '/');
 const showSidebar = computed(() => route.path === '/');

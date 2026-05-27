@@ -41,11 +41,19 @@ class Category extends Model
     }
 
     /**
-     * 所有后代分类（递归）
+     * 所有后代分类（限制深度为3层）
      */
     public function descendants(): HasMany
     {
-        return $this->hasMany(Category::class, 'parent_id')->with('descendants');
+        return $this->hasMany(Category::class, 'parent_id')
+            ->active()
+            ->ordered()
+            ->with(['children' => function ($query) {
+                $query->active()->ordered()
+                    ->with(['children' => function ($q) {
+                        $q->active()->ordered();
+                    }]);
+            }]);
     }
 
     /**

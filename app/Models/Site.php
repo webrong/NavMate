@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'category_id', 'title', 'url', 'description',
     'favicon_url', 'is_public', 'is_active',
-    'clicks', 'sort_order', 'visitor_token',
+    'clicks', 'sort_order',
 ])]
 class Site extends Model
 {

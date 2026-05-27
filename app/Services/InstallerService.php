@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -369,7 +368,7 @@ class InstallerService
             ['email' => $data['admin_email'] ?? 'admin@navigation.com'],
             [
                 'name' => $data['admin_name'] ?? 'Admin',
-                'password' => Hash::make($data['admin_password']),
+                'password' => $data['admin_password'],
                 'email_verified_at' => now(),
             ],
         );

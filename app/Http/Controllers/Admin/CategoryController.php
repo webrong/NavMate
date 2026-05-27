@@ -57,7 +57,7 @@ class CategoryController extends Controller
         }
 
         // Remove null values so database defaults apply (icon, sort_order, etc.)
-        $data = array_filter($data, fn($v) => $v !== null);
+        $data = array_filter($data, fn($v) => !is_null($v));
 
         try {
             $category = Category::create($data);
@@ -99,7 +99,7 @@ class CategoryController extends Controller
             }
         }
 
-        $category->update(array_filter($data, fn($v) => $v !== null));
+        $category->update(array_filter($data, fn($v) => !is_null($v)));
         $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '更新成功']);

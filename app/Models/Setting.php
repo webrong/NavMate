@@ -38,10 +38,11 @@ class Setting extends Model
      */
     public static function setMany(array $settings): void
     {
+        $now = now();
         foreach ($settings as $key => $value) {
-            static::updateOrCreate(
+            static::query()->updateOrInsert(
                 ['key' => $key],
-                ['value' => $value],
+                ['value' => $value, 'updated_at' => $now],
             );
         }
         static::flushCache();

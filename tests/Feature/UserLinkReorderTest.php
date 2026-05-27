@@ -35,7 +35,10 @@ class UserLinkReorderTest extends TestCase
 
         // This should hit the reorder endpoint, NOT the {link} update endpoint
         $response = $this->actingAs($user)->putJson('/api/user/links/reorder', [
-            'ids' => [$link2->id, $link1->id],
+            'items' => [
+                ['id' => $link2->id, 'sort_order' => 0],
+                ['id' => $link1->id, 'sort_order' => 1],
+            ],
         ]);
 
         // Should not be a 404 (which would happen if 'reorder' was captured as {link})
