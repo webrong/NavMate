@@ -196,6 +196,15 @@ class UpdateService
 
     protected function doUpdate(): array
     {
+        // The upgrade touches thousands of files (vendor alone is 10k+) and
+        // downloads an 11MB+ archive. PHP's default max_execution_time (30s)
+        // will kill the process mid-extract or mid-copy, leaving the install
+        // in a broken state and the UI stuck on the last logged step.
+        // Remove the limit for the duration of the upgrade. (Safe here because
+        // this method runs from an authenticated admin request, not cron.)
+        @set_time_limit(0);
+        @ini_set('memory_limit', '512M');
+
         $currentVersion = $this->getCurrentVersion();
         $log = '';
         $backupPath = null;
