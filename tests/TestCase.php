@@ -27,12 +27,31 @@ abstract class TestCase extends BaseTestCase
      * too late. Overriding here lets us swap the config right after bootstrap,
      * before any trait setUp code runs.
      *
-     * On some hosts (notably Windows) phpunit.xml's <env> overrides don't
-     * reliably propagate into Laravel's bootstrap, so we can't rely on them.
+     * Two environment-specific traps are handled:
+     *
+     * 1. Missing .env file: In CI (and some local setups) there is no .env at
+     *    test time. Dotenv's Reader uses @file_get_contents which on PHP 8.4 +
+     *    PHPUnit 12 no longer fully suppresses the warning, and PHPUnit turns
+     *    every warning into a test failure. We seed a minimal .env before
+     *    bootstrap to avoid this.
+     *
+     * 2. Wrong DB connection: phpunit.xml's <env> overrides don't reliably
+     *    reach Laravel's bootstrap (notably on Windows), so we pin the sqlite
+     *    memory config explicitly.
      */
     public function createApplication()
     {
-        $app = require Application::inferBasePath().'/bootstrap/app.php';
+        $basePath = Application::inferBasePath();
+
+        // Ensure a .env file exists so Dotenv doesn't emit a warning during
+        // bootstrap. CI's "Prepare application" step normally creates one, but
+        // this makes tests self-contained regardless of the host setup.
+        $envPath = $basePath.'/.env';
+        if (! file_exists($envPath)) {
+            @file_put_contents($envPath, "APP_KEY=base64:7bvAlPlM1/PJ1xe0PzRc96sAszsrGq0wnt6URmnHyB4=\n");
+        }
+
+        $app = require $basePath.'/bootstrap/app.php';
 
         $this->traitsUsedByTest = array_flip(class_uses_recursive(static::class));
 
