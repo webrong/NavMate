@@ -1,10 +1,12 @@
 <template>
   <div>
-    <div class="page-toolbar">
-      <a-input-search v-model:value="keyword" placeholder="搜索用户名/邮箱" style="width: 250px" @search="handleSearch" allow-clear />
-    </div>
+    <PageToolbar>
+      <template #left>
+        <a-input-search v-model:value="keyword" placeholder="搜索用户名/邮箱" style="width: 250px" @search="handleSearch" allow-clear />
+      </template>
+    </PageToolbar>
 
-    <a-card :bordered="false">
+    <div class="admin-card">
       <a-table :dataSource="store.items" :columns="columns" :loading="store.loading" :pagination="pagination" @change="handleTableChange" row-key="id" size="middle">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'is_admin'">
@@ -21,18 +23,22 @@
           </template>
           <template v-if="column.key === 'actions'">
             <a-popconfirm v-if="record.id !== currentUserId" title="确定删除此用户？" @confirm="handleDelete(record.id)">
-              <a-button type="link" danger size="small">删除</a-button>
+              <a-tooltip title="删除">
+                <a-button type="text" danger size="small"><DeleteOutlined /></a-button>
+              </a-tooltip>
             </a-popconfirm>
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, createVNode } from 'vue';
 import { message, Modal } from 'antdv-next';
+import { DeleteOutlined } from '@ant-design/icons-vue';
+import PageToolbar from '../components/PageToolbar.vue';
 import { useAdminUsersStore } from '../stores/adminUsers';
 import { useAdminAuthStore } from '../stores/adminAuth';
 

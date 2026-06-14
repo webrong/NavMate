@@ -1,19 +1,21 @@
 <template>
   <div>
-    <div class="page-toolbar">
-      <a-space>
+    <PageToolbar>
+      <template #left>
         <a-input-search v-model:value="keyword" placeholder="搜索站点名称/URL" style="width: 250px" @search="handleSearch" allow-clear />
-        <a-select v-model:value="filterCategory" placeholder="全部分类" style="width: 120px" allow-clear :options="categoryOptions" @change="onCategoryChange" />
+        <a-select v-model:value="filterCategory" placeholder="全部分类" style="width: 140px" allow-clear :options="categoryOptions" @change="onCategoryChange" />
         <a-select v-model:value="filterPublic" placeholder="公开状态" style="width: 120px" allow-clear @change="onPublicChange">
           <a-select-option value="">全部</a-select-option>
           <a-select-option :value="1">公开</a-select-option>
           <a-select-option :value="0">私有</a-select-option>
         </a-select>
-      </a-space>
-      <a-button type="primary" @click="openCreate"><PlusOutlined /> 新增站点</a-button>
-    </div>
+      </template>
+      <template #right>
+        <a-button type="primary" @click="openCreate"><PlusOutlined /> 新增站点</a-button>
+      </template>
+    </PageToolbar>
 
-    <a-card :bordered="false">
+    <div class="admin-card">
       <a-table :dataSource="store.items" :columns="columns" :loading="store.loading" :pagination="pagination" @change="handleTableChange" row-key="id" size="middle">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
@@ -36,15 +38,19 @@
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
+              <a-tooltip title="编辑">
+                <a-button type="text" size="small" @click="openEdit(record)"><EditOutlined /></a-button>
+              </a-tooltip>
               <a-popconfirm title="确定删除此站点？" @confirm="handleDelete(record.id)">
-                <a-button type="link" danger size="small">删除</a-button>
+                <a-tooltip title="删除">
+                  <a-button type="text" danger size="small"><DeleteOutlined /></a-button>
+                </a-tooltip>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
 
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑站点' : '新增站点'" @ok="handleSubmit" :confirm-loading="submitting" width="600px">
       <a-form :model="form" layout="vertical" style="margin-top:16px">
@@ -88,7 +94,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'antdv-next';
-import { PlusOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import PageToolbar from '../components/PageToolbar.vue';
 import { useAdminSitesStore } from '../stores/adminSites';
 
 const store = useAdminSitesStore();

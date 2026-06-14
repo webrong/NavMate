@@ -1,7 +1,7 @@
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-      <a-space>
+    <PageToolbar>
+      <template #left>
         <a-select v-model:value="filterPosition" style="width: 140px" allow-clear placeholder="全部位置" :getPopupContainer="trigger => trigger.parentNode" @change="filterPosition = $event || ''">
           <a-select-option value="content_between">内容区间</a-select-option>
           <a-select-option value="sidebar_bottom">侧边栏底部</a-select-option>
@@ -11,14 +11,15 @@
           <a-select-option :value="true">启用</a-select-option>
           <a-select-option :value="false">禁用</a-select-option>
         </a-select>
-      </a-space>
-      <a-button type="primary" @click="openCreate">
-        <template #icon><PlusOutlined /></template>
-        新增广告
-      </a-button>
-    </div>
+      </template>
+      <template #right>
+        <a-button type="primary" @click="openCreate">
+          <PlusOutlined /> 新增广告
+        </a-button>
+      </template>
+    </PageToolbar>
 
-    <a-card :bordered="false">
+    <div class="admin-card">
       <a-table :data-source="filteredAds" :columns="columns" :pagination="false" row-key="id" size="middle">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'image_url'">
@@ -32,15 +33,19 @@
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a @click="openEdit(record)">编辑</a>
+              <a-tooltip title="编辑">
+                <a-button type="text" size="small" @click="openEdit(record)"><EditOutlined /></a-button>
+              </a-tooltip>
               <a-popconfirm title="确认删除？" @confirm="handleDelete(record.id)">
-                <a style="color: #ff4d4f">删除</a>
+                <a-tooltip title="删除">
+                  <a-button type="text" danger size="small"><DeleteOutlined /></a-button>
+                </a-tooltip>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
 
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑广告' : '新增广告'" @ok="handleSubmit" :confirm-loading="submitting" width="560px">
       <a-form :model="form" layout="vertical" style="margin-top: 16px">
@@ -96,7 +101,8 @@
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue';
 import { message } from 'antdv-next';
-import { PlusOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import PageToolbar from '../components/PageToolbar.vue';
 import request from '../utils/request';
 
 const ads = ref([]);

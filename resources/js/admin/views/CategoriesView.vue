@@ -1,15 +1,17 @@
 <template>
   <div>
-    <div class="page-toolbar">
-      <a-space>
+    <PageToolbar>
+      <template #left>
         <a-input-search v-model:value="keyword" placeholder="搜索分类名称" style="width: 250px" @search="handleSearch" allow-clear />
-      </a-space>
-      <a-button type="primary" @click="openCreate">
-        <PlusOutlined /> 新增分类
-      </a-button>
-    </div>
+      </template>
+      <template #right>
+        <a-button type="primary" @click="openCreate">
+          <PlusOutlined /> 新增分类
+        </a-button>
+      </template>
+    </PageToolbar>
 
-    <a-card :bordered="false">
+    <div class="admin-card">
       <a-table
         :dataSource="store.items"
         :columns="columns"
@@ -32,15 +34,19 @@
           </template>
           <template v-if="column.key === 'actions'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
+              <a-tooltip title="编辑">
+                <a-button type="text" size="small" @click="openEdit(record)"><EditOutlined /></a-button>
+              </a-tooltip>
               <a-popconfirm title="确定删除此分类？" @confirm="handleDelete(record.id)">
-                <a-button type="link" danger size="small">删除</a-button>
+                <a-tooltip title="删除">
+                  <a-button type="text" danger size="small"><DeleteOutlined /></a-button>
+                </a-tooltip>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
 
     <!-- Create/Edit Modal -->
     <a-modal v-model:open="modalVisible" :title="editingId ? '编辑分类' : '新增分类'" @ok="handleSubmit" :confirm-loading="submitting" width="520px">
@@ -87,7 +93,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
 import { message } from 'antdv-next';
-import { PlusOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import PageToolbar from '../components/PageToolbar.vue';
 import { useAdminCategoriesStore } from '../stores/adminCategories';
 
 const store = useAdminCategoriesStore();

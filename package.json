@@ -19,11 +19,14 @@
         "@ant-design/icons-vue": "^7.0.1",
         "@popperjs/core": "^2.11.8",
         "@vitejs/plugin-vue": "^6.0.5",
+        "@vueuse/core": "^14.3.0",
         "antdv-next": "^1.1.8",
         "bootstrap": "^5.3.8",
         "dompurify": "^3.3.3",
+        "echarts": "^6.1.0",
         "pinia": "^3.0.4",
         "vue": "^3.5.32",
+        "vue-echarts": "^8.0.1",
         "vue-router": "^4.6.4"
     }
 }

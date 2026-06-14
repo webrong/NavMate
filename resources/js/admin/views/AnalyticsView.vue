@@ -50,20 +50,7 @@
       <!-- Trends Chart -->
       <a-col :span="12">
         <a-card title="点击趋势" :bordered="false">
-          <div v-if="trends.length" class="trend-chart">
-            <div class="trend-y-axis">
-              <span>{{ maxCount }}</span>
-              <span>{{ Math.round(maxCount / 2) }}</span>
-              <span>0</span>
-            </div>
-            <div class="trend-bars">
-              <div v-for="item in trends" :key="item.date" class="trend-bar-group">
-                <div class="trend-tooltip">{{ item.date }}<br/>{{ item.count }} 次</div>
-                <div class="trend-bar" :style="{ height: getBarHeight(item.count) + 'px' }"></div>
-                <div class="trend-label">{{ formatShortDate(item.date) }}</div>
-              </div>
-            </div>
-          </div>
+          <TrendChart v-if="trends.length" :data="trends" />
           <a-empty v-else description="数据积累中，暂无趋势数据" />
         </a-card>
       </a-col>
@@ -71,15 +58,7 @@
       <!-- Hourly Distribution -->
       <a-col :span="12">
         <a-card title="时段分布" :bordered="false">
-          <div v-if="hasHourlyData" class="hourly-chart">
-            <div class="hourly-bars">
-              <div v-for="item in hourlyData" :key="item.hour" class="hourly-bar-group">
-                <div class="hourly-tooltip">{{ item.hour }}:00<br/>{{ item.count }} 次</div>
-                <div class="hourly-bar" :style="{ height: getHourlyHeight(item.count) + 'px' }"></div>
-                <div class="hourly-label">{{ item.hour }}</div>
-              </div>
-            </div>
-          </div>
+          <HourlyChart v-if="hasHourlyData" :data="hourlyData" />
           <a-empty v-else description="数据积累中，暂无时段数据" />
         </a-card>
       </a-col>
@@ -89,19 +68,7 @@
       <!-- Top Categories -->
       <a-col :span="8">
         <a-card title="热门分类" :bordered="false">
-          <div v-if="topCategories.length">
-            <div v-for="(cat, i) in topCategories" :key="cat.id" class="category-item">
-              <div class="category-header">
-                <span class="category-rank">{{ i + 1 }}</span>
-                <span v-if="cat.icon" style="margin-right: 4px">{{ cat.icon }}</span>
-                <span class="category-name">{{ cat.name }}</span>
-                <span class="category-count">{{ cat.clicks }}</span>
-              </div>
-              <div class="category-bar-bg">
-                <div class="category-bar" :style="{ width: getCategoryPercent(cat.clicks) + '%' }"></div>
-              </div>
-            </div>
-          </div>
+          <CategoryChart v-if="topCategories.length" :data="topCategories" />
           <a-empty v-else description="数据积累中" />
         </a-card>
       </a-col>
@@ -163,6 +130,9 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { ThunderboltOutlined } from '@ant-design/icons-vue';
 import request from '../utils/request';
+import TrendChart from '../components/charts/TrendChart.vue';
+import HourlyChart from '../components/charts/HourlyChart.vue';
+import CategoryChart from '../components/charts/CategoryChart.vue';
 
 const isFullscreen = ref(false);
 const dateRange = ref(null);

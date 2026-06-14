@@ -1,0 +1,236 @@
+/*
+ * NavMate Admin Design System
+ *
+ * Tokens ported from the Figma-generated design (originally shadcn/Tailwind v4
+ * variables) and adapted for Ant Design Vue. Two themes — light and dark — are
+ * toggled via the `data-admin-theme` attribute on <html>.
+ *
+ * Brand color #fc7c3c matches the frontend (--theme-color in app.scss) so the
+ * admin and the public site read as one product.
+ */
+
+:root,
+[data-admin-theme='light'] {
+  --font-size: 14px;
+
+  --admin-background: #f0f2f5;
+  --admin-foreground: #1f2937;
+  --admin-card: #ffffff;
+  --admin-card-foreground: #1f2937;
+  --admin-popover: #ffffff;
+  --admin-popover-foreground: #1f2937;
+
+  --admin-primary: #fc7c3c;
+  --admin-primary-foreground: #ffffff;
+  --admin-primary-hover: #e33636;
+  --admin-primary-bg: rgba(252, 124, 60, 0.1);
+
+  --admin-secondary: #fff4ee;
+  --admin-secondary-foreground: #fc7c3c;
+
+  --admin-muted: #f5f6f8;
+  --admin-muted-foreground: #6b7280;
+
+  --admin-accent: #fff1e8;
+  --admin-accent-foreground: #e33636;
+
+  --admin-destructive: #f5222d;
+  --admin-destructive-foreground: #ffffff;
+
+  --admin-success: #52c41a;
+  --admin-warning: #faad14;
+  --admin-info: #722ed1;
+
+  --admin-border: #e8e8e8;
+  --admin-border-light: #f0f0f0;
+  --admin-input: #ffffff;
+  --admin-input-background: #ffffff;
+
+  --admin-radius: 8px;
+  --admin-radius-sm: 4px;
+  --admin-radius-md: 6px;
+  --admin-radius-lg: 8px;
+  --admin-radius-xl: 12px;
+
+  --admin-sidebar: #ffffff;
+  --admin-sidebar-foreground: #1f2937;
+  --admin-sidebar-primary: #fc7c3c;
+  --admin-sidebar-primary-foreground: #ffffff;
+  --admin-sidebar-accent: rgba(252, 124, 60, 0.1);
+  --admin-sidebar-accent-foreground: #fc7c3c;
+  --admin-sidebar-border: #e8e8e8;
+
+  --admin-header-bg: rgba(255, 255, 255, 0.85);
+  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --admin-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --admin-shadow-primary: 0 4px 12px rgba(252, 124, 60, 0.25);
+
+  --admin-chart-1: #fc7c3c;
+  --admin-chart-2: #52c41a;
+  --admin-chart-3: #722ed1;
+  --admin-chart-4: #faad14;
+  --admin-chart-5: #e33636;
+
+  --admin-font-family: 'Geist', -apple-system, 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+}
+
+[data-admin-theme='dark'] {
+  --admin-background: #1f2937;
+  --admin-foreground: #e5e7eb;
+  --admin-card: #374151;
+  --admin-card-foreground: #e5e7eb;
+  --admin-popover: #374151;
+  --admin-popover-foreground: #e5e7eb;
+
+  --admin-primary: #fc7c3c;
+  --admin-primary-foreground: #ffffff;
+  --admin-primary-hover: #ff9a67;
+  --admin-primary-bg: rgba(252, 124, 60, 0.16);
+
+  --admin-secondary: #4b5563;
+  --admin-secondary-foreground: #f9fafb;
+
+  --admin-muted: #4b5563;
+  --admin-muted-foreground: #d1d5db;
+
+  --admin-accent: rgba(252, 124, 60, 0.16);
+  --admin-accent-foreground: #ff9a67;
+
+  --admin-destructive: #f5222d;
+  --admin-destructive-foreground: #ffffff;
+
+  --admin-success: #52c41a;
+  --admin-warning: #faad14;
+  --admin-info: #722ed1;
+
+  --admin-border: #4b5563;
+  --admin-border-light: #374151;
+  --admin-input: #374151;
+  --admin-input-background: #374151;
+
+  --admin-sidebar: #374151;
+  --admin-sidebar-foreground: #e5e7eb;
+  --admin-sidebar-primary: #fc7c3c;
+  --admin-sidebar-primary-foreground: #ffffff;
+  --admin-sidebar-accent: rgba(252, 124, 60, 0.14);
+  --admin-sidebar-accent-foreground: #fc7c3c;
+  --admin-sidebar-border: #4b5563;
+
+  --admin-header-bg: rgba(55, 65, 81, 0.85);
+  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --admin-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --admin-shadow-primary: 0 4px 12px rgba(252, 124, 60, 0.3);
+}
+
+/* Global admin resets */
+body {
+  font-family: var(--admin-font-family);
+  font-size: var(--font-size);
+}
+
+#admin-app {
+  background: var(--admin-background);
+  color: var(--admin-foreground);
+  min-height: 100vh;
+}
+
+/* Page transition animation */
+.admin-page-fade-enter-active,
+.admin-page-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.admin-page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.admin-page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Generic card wrapper used across all admin views */
+.admin-card {
+  background: var(--admin-card);
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-card-hover:hover {
+  box-shadow: var(--admin-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/*
+ * Give every Ant Design card in the admin a consistent shadow + radius so views
+ * that still use <a-card> (Settings, SystemMonitor, etc.) match the .admin-card
+ * look without needing per-view edits.
+ */
+#admin-app .ant-card {
+  border-radius: var(--admin-radius);
+  box-shadow: var(--admin-shadow-card);
+  border-color: var(--admin-border);
+}
+
+/* Card titles should use the foreground token, not a hardcoded grey */
+#admin-app .ant-card-head-title {
+  font-weight: 600;
+}
+
+/* Stat-card icon chip backgrounds (light pastel circles) */
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--admin-radius-lg);
+  font-size: 24px;
+}
+
+.icon-chip--primary {
+  background: rgba(252, 124, 60, 0.12);
+  color: #fc7c3c;
+}
+.icon-chip--success {
+  background: rgba(82, 196, 26, 0.12);
+  color: #52c41a;
+}
+.icon-chip--info {
+  background: rgba(114, 46, 209, 0.12);
+  color: #722ed1;
+}
+.icon-chip--warning {
+  background: rgba(250, 173, 20, 0.12);
+  color: #faad14;
+}
+.icon-chip--danger {
+  background: rgba(245, 34, 45, 0.12);
+  color: #f5222d;
+}
+.icon-chip--cyan {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+}
+
+/* Scrollbar styling for a more modern feel */
+.ant-layout-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--admin-border) transparent;
+}
+
+.ant-layout-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-layout-content::-webkit-scrollbar-thumb {
+  background: var(--admin-border);
+  border-radius: 3px;
+}
+
+.ant-layout-content::-webkit-scrollbar-track {
+  background: transparent;
+}
