@@ -36,7 +36,9 @@ return [
     ],
 
     'update' => [
-        'github_repo' => env('UPDATE_GITHUB_REPO', ''),
+        // 默认从官方仓库检查更新，开箱即用。仅当你 fork 本项目自测时，
+        // 才需要在 .env 中设置 UPDATE_GITHUB_REPO 指向你的仓库。
+        'github_repo' => env('UPDATE_GITHUB_REPO', 'webrong/NavMate'),
         'custom_source' => env('UPDATE_CUSTOM_SOURCE'),
     ],
 
