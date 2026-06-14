@@ -513,6 +513,12 @@ class UpdateService
 
     /**
      * Download release archive
+     *
+     * Uses cURL with HTTP Range requests to resume partial downloads. This is
+     * essential for hosts with slow or unstable connectivity to GitHub's
+     * release-assets CDN, where a single streaming GET can exceed the timeout
+     * before the file finishes. Each retry continues from the bytes already on
+     * disk, so a flaky connection can still complete over several attempts.
      */
     protected function downloadRelease(string $url): string
     {
@@ -522,14 +528,113 @@ class UpdateService
         }
 
         $zipPath = $tmpDir.'/update-'.uniqid('', true).'.zip';
-        $response = Http::timeout(300)->sink($zipPath)->get($url);
 
-        if (! $response->successful()) {
-            @unlink($zipPath);
-            throw new \RuntimeException('下载发布包失败: HTTP '.$response->status());
+        $attemptTimeout = 300;  // wall-clock per attempt (seconds)
+        $connectTimeout = 30;
+        $maxAttempts = 5;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $resumeFrom = is_file($zipPath) ? (@filesize($zipPath) ?: 0) : 0;
+
+            // Decide open mode: append when resuming, truncate on first run.
+            // Also detect a critical edge case: if the previous attempt got a
+            // full 200 response (server ignored Range) the file is already
+            // complete, and we'd wrongly append more. The header capture below
+            // guards against this.
+            $mode = $resumeFrom > 0 ? 'ab' : 'wb';
+            $outHandle = fopen($zipPath, $mode);
+            if ($outHandle === false) {
+                throw new \RuntimeException('无法打开下载临时文件: '.$zipPath);
+            }
+
+            // Capture the response headers so we know whether we got 200 (full)
+            // or 206 (partial), and the total size from Content-Range.
+            $totalSize = null;       // total bytes of the resource, from Content-Range
+            $isPartial = false;      // whether this response was a 206 chunk
+            $headers = [];
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_FILE => $outHandle,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => $attemptTimeout,
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$headers, &$totalSize, &$isPartial) {
+                    $headers[] = $header;
+                    // Content-Range: bytes 5412992-12059402/12059403
+                    if (preg_match('/^content-range:\s*bytes\s+\d+-\d+\/(\d+)/i', $header, $m)) {
+                        $totalSize = (int) $m[1];
+                        $isPartial = true;
+                    }
+
+                    return strlen($header);
+                },
+            ]);
+
+            if ($resumeFrom > 0) {
+                curl_setopt($ch, CURLOPT_RANGE, "{$resumeFrom}-");
+            }
+
+            curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $errno = curl_errno($ch);
+            $errorMsg = curl_error($ch);
+            fclose($outHandle);
+            curl_close($ch);
+
+            clearstatcache(true, $zipPath);
+            $currentSize = @filesize($zipPath) ?: 0;
+
+            // Case 1: cURL error (timeout, connection reset, etc).
+            // These are recoverable — retry to resume from currentSize.
+            $recoverable = in_array($errno, [0, 28, 56, 18, 52, 53, 55], true);
+            if ($errno !== 0 && $errno !== 28) {
+                // A real failure (not a clean timeout). Keep partial and retry
+                // only if recoverable; otherwise abort.
+                if (! $recoverable || $attempt >= $maxAttempts) {
+                    @unlink($zipPath);
+                    throw new \RuntimeException(
+                        '下载发布包失败（cURL 错误 '.$errno.'）：'.$errorMsg
+                    );
+                }
+                usleep(500000);
+
+                continue;
+            }
+
+            // Case 2: HTTP error (non-2xx). No point retrying the same URL.
+            if ($httpCode !== 200 && $httpCode !== 206) {
+                @unlink($zipPath);
+                throw new \RuntimeException('下载发布包失败: HTTP '.$httpCode);
+            }
+
+            // Case 3: Got a full 200 response (server ignored our Range header,
+            // or first attempt). The file was rewritten from the start —
+            // cURL wrote the complete body, so we're done.
+            if ($httpCode === 200) {
+                break;
+            }
+
+            // Case 4: 206 Partial Content. If we know the total size, check if
+            // we've got the whole thing; otherwise loop to fetch more.
+            if ($isPartial && $totalSize !== null && $currentSize >= $totalSize) {
+                break; // complete
+            }
+
+            if ($attempt >= $maxAttempts) {
+                $pct = $totalSize ? ' ('.round($currentSize / $totalSize * 100).'%)' : '';
+                throw new \RuntimeException(
+                    '下载发布包失败：已下载 '.$currentSize.' 字节'.$pct
+                    .'，重试 '.$maxAttempts.' 次后仍未完成。'
+                    .'通常是服务器访问 GitHub 较慢导致，请稍后重试。'
+                );
+            }
+            usleep(500000);
         }
 
-        // Check download size (limit: 200MB)
+        // Final size sanity check (limit: 200MB)
         $maxBytes = 200 * 1024 * 1024;
         $fileSize = @filesize($zipPath);
         if ($fileSize !== false && $fileSize > $maxBytes) {
