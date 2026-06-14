@@ -63,10 +63,22 @@ jobs:
           php artisan key:generate
 
       - name: Run tests
-        run: php artisan test
+        run: |
+          # Capture full output so failures are visible in the job summary,
+          # not just the truncated annotation.
+          set -o pipefail
+          php artisan test 2>&1 | tee /tmp/test-output.txt
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
+
+      - name: Publish test output on failure
+        if: failure()
+        run: |
+          echo '## Test output' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
   frontend-build:
     name: Frontend · Vite Build
