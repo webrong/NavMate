@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Category;
+use App\Models\Site;
 use Illuminate\Support\Str;
 
 /**
@@ -14,12 +16,12 @@ class BookmarkParserService
      */
     public function parse(string $html): array
     {
-        if (!mb_check_encoding($html, 'UTF-8')) {
+        if (! mb_check_encoding($html, 'UTF-8')) {
             $html = mb_convert_encoding($html, 'UTF-8', 'auto');
         }
 
         // 提取最外层DL内容
-        if (!preg_match('/<DL>(.*)<\/DL>/si', $html, $match)) {
+        if (! preg_match('/<DL>(.*)<\/DL>/si', $html, $match)) {
             return [];
         }
 
@@ -49,7 +51,9 @@ class BookmarkParserService
 
             // 找下一个 <DT>
             $dtPos = stripos($content, '<DT>', $offset);
-            if ($dtPos === false) break;
+            if ($dtPos === false) {
+                break;
+            }
 
             $offset = $dtPos + 4;
 
@@ -72,7 +76,8 @@ class BookmarkParserService
                             ];
                             // Skip past the closing </DL> tag - use stripos for case-insensitive match
                             $closePos = stripos($content, '</DL>', $dlStart + 4 + strlen($inner));
-                            $offset = $closePos !== false ? $closePos + 5: $dlStart + 4 + strlen($inner) + 5;
+                            $offset = $closePos !== false ? $closePos + 5 : $dlStart + 4 + strlen($inner) + 5;
+
                             continue;
                         }
                     }
@@ -84,6 +89,7 @@ class BookmarkParserService
                         'children' => [],
                     ];
                 }
+
                 continue;
             }
 
@@ -93,7 +99,7 @@ class BookmarkParserService
                 $title = $this->cleanText($linkMatch[2]);
                 $url = $this->extractUrl($attrs);
 
-                if ($url && !Str::startsWith($url, ['javascript:', 'place:', 'data:'])) {
+                if ($url && ! Str::startsWith($url, ['javascript:', 'place:', 'data:'])) {
                     $addDate = null;
                     if (preg_match('/ADD_DATE="(\d+)"/si', $attrs, $m)) {
                         $addDate = date('Y-m-d H:i:s', (int) $m[1]);
@@ -129,7 +135,9 @@ class BookmarkParserService
             $openTag = stripos($content, '<DL>', $pos);
             $closeTag = stripos($content, '</DL>', $pos);
 
-            if ($closeTag === false) break;
+            if ($closeTag === false) {
+                break;
+            }
 
             if ($openTag !== false && $openTag < $closeTag) {
                 $depth++;
@@ -139,6 +147,7 @@ class BookmarkParserService
                 if ($depth === 0) {
                     // 找到匹配的闭合标签
                     $innerStart = stripos($content, '>', $dlStart) + 1;
+
                     return substr($content, $innerStart, $closeTag - $innerStart);
                 }
                 $pos = $closeTag + 5;
@@ -153,8 +162,13 @@ class BookmarkParserService
      */
     private function extractUrl(string $attrs): string
     {
-        if (preg_match('/HREF="([^"]*)"/si', $attrs, $m)) return $m[1];
-        if (preg_match("/HREF='([^']*)'/si", $attrs, $m)) return $m[1];
+        if (preg_match('/HREF="([^"]*)"/si', $attrs, $m)) {
+            return $m[1];
+        }
+        if (preg_match("/HREF='([^']*)'/si", $attrs, $m)) {
+            return $m[1];
+        }
+
         return '';
     }
 
@@ -182,7 +196,7 @@ class BookmarkParserService
                     'samples' => array_slice($group['bookmarks'], 0, 3),
                 ];
             } else {
-                $existing = collect($preview)->first(fn($p) => $p['folder'] === '未分类书签');
+                $existing = collect($preview)->first(fn ($p) => $p['folder'] === '未分类书签');
                 if ($existing) {
                     $existing['count'] += $count;
                     $existing['samples'] = array_slice(
@@ -211,15 +225,15 @@ class BookmarkParserService
 
         foreach ($tree as $item) {
             if ($item['type'] === 'folder') {
-                $folderPath = $parentFolder ? $parentFolder . ' / ' . $item['name'] : $item['name'];
+                $folderPath = $parentFolder ? $parentFolder.' / '.$item['name'] : $item['name'];
 
                 // 先递归处理子文件夹
                 $childResults = $this->flatten($item['children'], $folderPath);
                 $result = array_merge($result, $childResults);
 
                 // 收集当前文件夹的直接书签
-                $bookmarks = array_filter($item['children'], fn($c) => $c['type'] === 'bookmark');
-                if (!empty($bookmarks)) {
+                $bookmarks = array_filter($item['children'], fn ($c) => $c['type'] === 'bookmark');
+                if (! empty($bookmarks)) {
                     $result[] = [
                         'folder' => $item['name'],
                         'parent_folder' => $parentFolder,
@@ -248,29 +262,35 @@ class BookmarkParserService
 
         $imported = ['categories' => 0, 'sites' => 0, 'skipped' => 0];
 
-        if (empty($flat)) return $imported;
+        if (empty($flat)) {
+            return $imported;
+        }
 
         $skipDuplicate = $options['skip_duplicate'] ?? true;
         $parentCategoryId = $options['parent_category_id'] ?? null;
-        $existingUrls = \App\Models\Site::pluck('url')->flip()->toArray();
+        $existingUrls = Site::pluck('url')->flip()->toArray();
 
         // Pre-calculate next sort_order to avoid repeated MAX() queries
-        $nextSortOrder = (\App\Models\Category::max('sort_order') ?? 0) + 1;
+        $nextSortOrder = (Category::max('sort_order') ?? 0) + 1;
 
         foreach ($flat as $group) {
-            if (empty($group['bookmarks'])) continue;
+            if (empty($group['bookmarks'])) {
+                continue;
+            }
 
             $categoryName = $group['folder'] ?: '未分类书签';
 
             // Resolve parent category
             $catParentId = $parentCategoryId;
             if ($group['parent_folder']) {
-                $parentCat = \App\Models\Category::where('name', $group['parent_folder'])->first();
-                if ($parentCat) $catParentId = $parentCat->id;
+                $parentCat = Category::where('name', $group['parent_folder'])->first();
+                if ($parentCat) {
+                    $catParentId = $parentCat->id;
+                }
             }
 
             // Look for existing category matching name AND parent
-            $categoryQuery = \App\Models\Category::where('name', $categoryName);
+            $categoryQuery = Category::where('name', $categoryName);
             if ($catParentId) {
                 $categoryQuery->where('parent_id', $catParentId);
             } else {
@@ -278,8 +298,8 @@ class BookmarkParserService
             }
             $category = $categoryQuery->first();
 
-            if (!$category) {
-                $category = \App\Models\Category::create([
+            if (! $category) {
+                $category = Category::create([
                     'name' => $categoryName,
                     'slug' => $this->generateSlug($categoryName),
                     'is_active' => true,
@@ -294,10 +314,11 @@ class BookmarkParserService
 
                 if ($skipDuplicate && isset($existingUrls[$url])) {
                     $imported['skipped']++;
+
                     continue;
                 }
 
-                \App\Models\Site::create([
+                Site::create([
                     'category_id' => $category->id,
                     'title' => $bookmark['title'],
                     'url' => $url,
@@ -318,6 +339,7 @@ class BookmarkParserService
     private function cleanText(string $text): string
     {
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
         return trim(preg_replace('/\s+/', ' ', $text));
     }
 
@@ -325,14 +347,14 @@ class BookmarkParserService
     {
         // 中文友好的slug: 使用拼音首字母
         $slug = preg_replace('/[^\p{Han}\p{L}\p{N}\p{P}]+/u', '-', $name);
-        if (empty($slug) || !preg_match('/[a-zA-Z]/', $slug)) {
-            $slug = 'cat-' . Str::random(6);
+        if (empty($slug) || ! preg_match('/[a-zA-Z]/', $slug)) {
+            $slug = 'cat-'.Str::random(6);
         }
 
         // 确保唯一
-        $count = \App\Models\Category::where('slug', $slug)->count();
+        $count = Category::where('slug', $slug)->count();
         if ($count > 0) {
-            $slug .= '-' . Str::random(4);
+            $slug .= '-'.Str::random(4);
         }
 
         return $slug;
@@ -341,6 +363,7 @@ class BookmarkParserService
     private function extractTitleFromUrl(string $url): string
     {
         $parsed = parse_url($url);
+
         return str_replace('www.', '', $parsed['host'] ?? $url);
     }
 }

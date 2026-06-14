@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\UpdateLog;
 use App\Services\SystemInfoService;
 use App\Services\UpdateService;
@@ -36,6 +37,7 @@ class SystemController extends Controller
     public function checkUpdate(): JsonResponse
     {
         $result = $this->updater->checkForUpdate();
+
         return response()->json($result);
     }
 
@@ -45,6 +47,7 @@ class SystemController extends Controller
     public function update(): JsonResponse
     {
         $result = $this->updater->update();
+
         return response()->json($result, $result['success'] ? 200 : 500);
     }
 
@@ -69,31 +72,36 @@ class SystemController extends Controller
         try {
             Cache::flush();
             $results[] = '应用缓存';
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         // Settings cache
         try {
-            \App\Models\Setting::flushCache();
+            Setting::flushCache();
             $results[] = '设置缓存';
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         // Config cache
         try {
             Artisan::call('config:clear');
             $results[] = '配置缓存';
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         // View cache
         try {
             Artisan::call('view:clear');
             $results[] = '视图缓存';
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         // Route cache
         try {
             Artisan::call('route:clear');
             $results[] = '路由缓存';
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+        }
 
         $cleared = implode('、', $results);
 

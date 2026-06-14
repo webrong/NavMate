@@ -71,7 +71,7 @@ class SiteManagementController extends Controller
         $data = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'title' => 'required|string|max:255',
-            'url' => 'required|url|max:2048|unique:sites,url,' . $site->id,
+            'url' => 'required|url|max:2048|unique:sites,url,'.$site->id,
             'description' => 'nullable|string|max:500',
             'favicon_url' => 'nullable|url|max:2048',
             'is_public' => 'nullable|boolean',
@@ -89,6 +89,7 @@ class SiteManagementController extends Controller
     {
         $site->delete();
         $this->clearDashboardCache();
+
         return response()->json(['code' => 0, 'msg' => '删除成功']);
     }
 
@@ -96,12 +97,14 @@ class SiteManagementController extends Controller
     {
         $request->validate(['url' => 'required|url|max:2048']);
         $result = app(UrlFetcherService::class)->fetch($request->url);
+
         return response()->json($result);
     }
 
     public function categories(): JsonResponse
     {
         $categories = Category::active()->ordered()->get(['id', 'name']);
+
         return response()->json(['code' => 0, 'data' => $categories]);
     }
 }

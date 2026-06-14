@@ -41,7 +41,7 @@ class BookmarkImportController extends Controller
             $result = $this->parser->preview($html);
 
             // Cache parsed result using a unique key (avoid bloating session)
-            $cacheKey = 'bookmark_preview:' . $request->session()->getId();
+            $cacheKey = 'bookmark_preview:'.$request->session()->getId();
             Cache::put($cacheKey, $html, 1800); // 30 min TTL
 
             return response()->json($result);
@@ -55,10 +55,10 @@ class BookmarkImportController extends Controller
      */
     public function import(Request $request)
     {
-        $cacheKey = 'bookmark_preview:' . $request->session()->getId();
+        $cacheKey = 'bookmark_preview:'.$request->session()->getId();
         $html = Cache::get($cacheKey);
 
-        if (!$html) {
+        if (! $html) {
             return response()->json(['error' => '请先上传并预览书签文件'], 422);
         }
 

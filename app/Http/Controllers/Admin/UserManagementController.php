@@ -39,7 +39,7 @@ class UserManagementController extends Controller
         ]);
 
         // Prevent removing admin role from the last admin
-        if (isset($data['is_admin']) && !$data['is_admin'] && $user->is_admin) {
+        if (isset($data['is_admin']) && ! $data['is_admin'] && $user->is_admin) {
             $adminCount = User::where('is_admin', true)->count();
             if ($adminCount <= 1) {
                 return response()->json(['message' => '不能取消最后一个管理员权限'], 422);

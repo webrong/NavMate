@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ClickLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -15,8 +16,7 @@ Artisan::command('inspire', function () {
 */
 
 // Clean up click_logs older than 90 days (see ClickLog::prunable())
-Schedule::command('model:prune', ['--model' => \App\Models\ClickLog::class])
+Schedule::command('model:prune', ['--model' => ClickLog::class])
     ->daily()
     ->at('03:00')
     ->withoutOverlapping();
-

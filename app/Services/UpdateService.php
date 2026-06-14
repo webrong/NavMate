@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\Models\UpdateLog;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use ZipArchive;
 
 class UpdateService
 {
     protected string $repo;
+
     protected ?string $customSource;
 
     public function __construct()
@@ -25,8 +27,10 @@ class UpdateService
         $path = storage_path('app/installed');
         if (file_exists($path)) {
             $data = json_decode(file_get_contents($path), true);
+
             return $data['version'] ?? '1.0.0';
         }
+
         return '1.0.0';
     }
 
@@ -67,7 +71,7 @@ class UpdateService
             return [
                 'has_update' => false,
                 'current_version' => $this->getCurrentVersion(),
-                'error' => '检查更新失败: ' . $e->getMessage(),
+                'error' => '检查更新失败: '.$e->getMessage(),
             ];
         }
     }
@@ -81,8 +85,8 @@ class UpdateService
             ->withHeaders(['Accept' => 'application/vnd.github+json'])
             ->get("https://api.github.com/repos/{$this->repo}/releases/latest");
 
-        if (!$response->successful()) {
-            $errorMsg = 'GitHub API 请求失败: ' . $response->status();
+        if (! $response->successful()) {
+            $errorMsg = 'GitHub API 请求失败: '.$response->status();
             if ($response->status() === 403) {
                 $remaining = $response->header('X-RateLimit-Remaining');
                 if ($remaining === '0') {
@@ -91,6 +95,7 @@ class UpdateService
                     $errorMsg = "GitHub API 请求次数已用完，请 {$waitMinutes} 分钟后再试";
                 }
             }
+
             return [
                 'has_update' => false,
                 'current_version' => $currentVersion,
@@ -128,7 +133,7 @@ class UpdateService
     protected function checkCustomSource(string $currentVersion): array
     {
         $scheme = parse_url($this->customSource, PHP_URL_SCHEME);
-        if (!in_array($scheme, ['https', 'http'], true)) {
+        if (! in_array($scheme, ['https', 'http'], true)) {
             return [
                 'has_update' => false,
                 'current_version' => $currentVersion,
@@ -138,11 +143,11 @@ class UpdateService
 
         $response = Http::timeout(10)->get($this->customSource);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [
                 'has_update' => false,
                 'current_version' => $currentVersion,
-                'error' => '更新源请求失败: ' . $response->status(),
+                'error' => '更新源请求失败: '.$response->status(),
             ];
         }
 
@@ -167,8 +172,11 @@ class UpdateService
     {
         $lockFile = storage_path('framework/update.lock');
         $lockHandle = fopen($lockFile, 'w+');
-        if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
-            if ($lockHandle) fclose($lockHandle);
+        if (! $lockHandle || ! flock($lockHandle, LOCK_EX | LOCK_NB)) {
+            if ($lockHandle) {
+                fclose($lockHandle);
+            }
+
             return [
                 'success' => false,
                 'message' => '升级正在进行中，请稍后再试',
@@ -198,7 +206,7 @@ class UpdateService
             $log .= "[1/9] 检查更新...\n";
             $updateInfo = $this->checkForUpdate();
 
-            if (!empty($updateInfo['error'])) {
+            if (! empty($updateInfo['error'])) {
                 throw new \RuntimeException($updateInfo['error']);
             }
 
@@ -210,7 +218,7 @@ class UpdateService
             $downloadUrl = $updateInfo['download_url'];
 
             // Validate download URL scheme — HTTPS only to prevent MitM
-            if (!str_starts_with($downloadUrl, 'https://')) {
+            if (! str_starts_with($downloadUrl, 'https://')) {
                 throw new \RuntimeException('下载地址必须使用 HTTPS 协议');
             }
 
@@ -234,9 +242,9 @@ class UpdateService
             $zipPath = $this->downloadRelease($downloadUrl);
 
             // 5.5 Verify integrity (SHA256 checksum) if provided by update source
-            if (!empty($updateInfo['sha256'])) {
+            if (! empty($updateInfo['sha256'])) {
                 $actualHash = hash_file('sha256', $zipPath);
-                if (!hash_equals($updateInfo['sha256'], $actualHash)) {
+                if (! hash_equals($updateInfo['sha256'], $actualHash)) {
                     @unlink($zipPath);
                     throw new \RuntimeException("下载包完整性校验失败（预期: {$updateInfo['sha256']}, 实际: {$actualHash}）");
                 }
@@ -280,7 +288,7 @@ class UpdateService
                 'to_version' => $targetVersion,
             ];
         } catch (\Throwable $e) {
-            $log .= "\n错误: " . $e->getMessage() . "\n";
+            $log .= "\n错误: ".$e->getMessage()."\n";
 
             // Try to restore from backup
             if ($backupPath && file_exists($backupPath)) {
@@ -289,14 +297,15 @@ class UpdateService
                     $this->restoreBackup($backupPath);
                     $log .= "已从备份恢复\n";
                 } catch (\Throwable $restoreError) {
-                    $log .= "备份恢复失败: " . $restoreError->getMessage() . "\n";
+                    $log .= '备份恢复失败: '.$restoreError->getMessage()."\n";
                 }
             }
 
             // Ensure maintenance mode is off
             try {
                 $this->disableMaintenanceMode();
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
 
             // Log failure
             UpdateLog::create([
@@ -308,7 +317,7 @@ class UpdateService
 
             return [
                 'success' => false,
-                'message' => '升级失败: ' . $e->getMessage(),
+                'message' => '升级失败: '.$e->getMessage(),
             ];
         }
     }
@@ -345,7 +354,7 @@ class UpdateService
         $migrator = app('migrator');
         $migrator->setConnection(config('database.default'));
 
-        if (!$migrator->repositoryExists()) {
+        if (! $migrator->repositoryExists()) {
             $migrator->getRepository()->createRepository();
         }
 
@@ -362,11 +371,11 @@ class UpdateService
     {
         $viewPath = storage_path('framework/views');
         if (is_dir($viewPath)) {
-            array_map('unlink', glob($viewPath . '/*'));
+            array_map('unlink', glob($viewPath.'/*'));
         }
 
         foreach (['config.php', 'routes-v7.php', 'events.php', 'services.php'] as $file) {
-            $path = base_path('bootstrap/cache/' . $file);
+            $path = base_path('bootstrap/cache/'.$file);
             if (file_exists($path)) {
                 @unlink($path);
             }
@@ -374,7 +383,7 @@ class UpdateService
 
         // Clear application cache
         try {
-            \Illuminate\Support\Facades\Cache::flush();
+            Cache::flush();
         } catch (\Throwable) {
             // Cache may not be available
         }
@@ -386,7 +395,7 @@ class UpdateService
     protected function backupDatabase(): ?string
     {
         $backupDir = storage_path('app/backups');
-        if (!is_dir($backupDir)) {
+        if (! is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
         }
 
@@ -401,7 +410,7 @@ class UpdateService
         $dbHost = config('database.connections.mysql.host', '127.0.0.1');
         $dbPort = config('database.connections.mysql.port', 3306);
 
-        $backupFile = $backupDir . '/db-' . date('YmdHis') . '.sql';
+        $backupFile = $backupDir.'/db-'.date('YmdHis').'.sql';
         $command = sprintf(
             '%s -h%s -P%s -u%s %s > %s 2>/dev/null',
             escapeshellcmd(trim($mysqlDump)),
@@ -424,8 +433,9 @@ class UpdateService
             2 => ['pipe', 'w'],
         ], $pipes, null, $env);
 
-        if (!is_resource($process)) {
+        if (! is_resource($process)) {
             @unlink($backupFile);
+
             return null;
         }
 
@@ -437,6 +447,7 @@ class UpdateService
             return $backupFile;
         }
         @unlink($backupFile);
+
         return null;
     }
 
@@ -446,12 +457,12 @@ class UpdateService
     protected function createBackup(string $version): string
     {
         $backupDir = storage_path('app/backups');
-        if (!is_dir($backupDir)) {
+        if (! is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
         }
 
-        $backupPath = $backupDir . "/pre-{$version}-" . date('YmdHis') . '.zip';
-        $zip = new ZipArchive();
+        $backupPath = $backupDir."/pre-{$version}-".date('YmdHis').'.zip';
+        $zip = new ZipArchive;
 
         if ($zip->open($backupPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new \RuntimeException('无法创建备份文件');
@@ -471,8 +482,8 @@ class UpdateService
      */
     protected function addDirectoryToZip(ZipArchive $zip, string $basePath, string $prefix, array $exclude): void
     {
-        $dir = $basePath . ($prefix ? '/' . $prefix : '');
-        if (!is_dir($dir)) {
+        $dir = $basePath.($prefix ? '/'.$prefix : '');
+        if (! is_dir($dir)) {
             return;
         }
 
@@ -506,16 +517,16 @@ class UpdateService
     protected function downloadRelease(string $url): string
     {
         $tmpDir = storage_path('app/tmp');
-        if (!is_dir($tmpDir)) {
+        if (! is_dir($tmpDir)) {
             mkdir($tmpDir, 0755, true);
         }
 
-        $zipPath = $tmpDir . '/update-' . uniqid('', true) . '.zip';
+        $zipPath = $tmpDir.'/update-'.uniqid('', true).'.zip';
         $response = Http::timeout(300)->sink($zipPath)->get($url);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             @unlink($zipPath);
-            throw new \RuntimeException('下载发布包失败: HTTP ' . $response->status());
+            throw new \RuntimeException('下载发布包失败: HTTP '.$response->status());
         }
 
         // Check download size (limit: 200MB)
@@ -523,7 +534,7 @@ class UpdateService
         $fileSize = @filesize($zipPath);
         if ($fileSize !== false && $fileSize > $maxBytes) {
             @unlink($zipPath);
-            throw new \RuntimeException('下载文件过大（' . round($fileSize / 1024 / 1024, 1) . 'MB），超过 200MB 限制');
+            throw new \RuntimeException('下载文件过大（'.round($fileSize / 1024 / 1024, 1).'MB），超过 200MB 限制');
         }
 
         return $zipPath;
@@ -534,7 +545,7 @@ class UpdateService
      */
     protected function extractAndReplace(string $zipPath): void
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($zipPath) !== true) {
             throw new \RuntimeException('无法打开下载的压缩包');
         }
@@ -544,19 +555,19 @@ class UpdateService
             $name = $zip->getNameIndex($i);
             if (str_contains($name, '..') || str_starts_with($name, '/')) {
                 $zip->close();
-                throw new \RuntimeException('压缩包包含非法路径: ' . $name);
+                throw new \RuntimeException('压缩包包含非法路径: '.$name);
             }
         }
         $zip->close();
 
         // Re-open and extract
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $zip->open($zipPath);
-        $tmpDir = storage_path('app/tmp/extract-' . uniqid('', true));
-        if (!mkdir($tmpDir, 0755, true)) {
+        $tmpDir = storage_path('app/tmp/extract-'.uniqid('', true));
+        if (! mkdir($tmpDir, 0755, true)) {
             throw new \RuntimeException('无法创建临时目录');
         }
-        if (!$zip->extractTo($tmpDir)) {
+        if (! $zip->extractTo($tmpDir)) {
             $zip->close();
             $this->recursiveDelete($tmpDir);
             throw new \RuntimeException('压缩包解压失败');
@@ -572,7 +583,7 @@ class UpdateService
         }
 
         // Validate source directory looks like a Laravel project
-        if (!file_exists("{$sourceDir}/artisan") || !file_exists("{$sourceDir}/composer.json")) {
+        if (! file_exists("{$sourceDir}/artisan") || ! file_exists("{$sourceDir}/composer.json")) {
             $this->recursiveDelete($tmpDir);
             throw new \RuntimeException('压缩包目录结构无效：未检测到有效的 Laravel 项目');
         }
@@ -605,7 +616,7 @@ class UpdateService
 
             // Skip preserved items (match full relative path, top-level name, or prefix)
             foreach ($preserve as $p) {
-                if ($currentRelative === $p || $file === $p || str_starts_with($currentRelative . '/', $p . '/')) {
+                if ($currentRelative === $p || $file === $p || str_starts_with($currentRelative.'/', $p.'/')) {
                     continue 2;
                 }
             }
@@ -614,12 +625,12 @@ class UpdateService
             $dstPath = "{$dst}/{$file}";
 
             if (is_dir($srcPath)) {
-                if (!is_dir($dstPath)) {
+                if (! is_dir($dstPath)) {
                     mkdir($dstPath, 0755, true);
                 }
                 $this->recursiveCopy($srcPath, $dstPath, $preserve, $currentRelative);
             } else {
-                if (!@copy($srcPath, $dstPath)) {
+                if (! @copy($srcPath, $dstPath)) {
                     throw new \RuntimeException("文件复制失败: {$currentRelative}");
                 }
             }
@@ -632,13 +643,13 @@ class UpdateService
      */
     protected function restoreBackup(string $backupPath): void
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($backupPath) !== true) {
             throw new \RuntimeException('无法打开备份文件');
         }
 
         // Extract to temp dir first, then selectively copy back
-        $tmpDir = storage_path('app/tmp/restore-' . uniqid('', true));
+        $tmpDir = storage_path('app/tmp/restore-'.uniqid('', true));
         mkdir($tmpDir, 0755, true);
         $zip->extractTo($tmpDir);
         $zip->close();

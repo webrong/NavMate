@@ -13,7 +13,7 @@ class CheckMaintenanceMode
     public function handle(Request $request, Closure $next): Response
     {
         // Skip during installation (database may not be configured)
-        if (!InstallerService::isInstalled()) {
+        if (! InstallerService::isInstalled()) {
             return $next($request);
         }
 

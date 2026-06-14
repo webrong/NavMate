@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
@@ -51,11 +52,11 @@ class Setting extends Model
     /**
      * Get all settings as a key-value collection (cached)
      */
-    public static function allCached(): \Illuminate\Support\Collection
+    public static function allCached(): Collection
     {
         try {
             $cached = Cache::get(static::$cacheKey);
-            if ($cached instanceof \Illuminate\Support\Collection) {
+            if ($cached instanceof Collection) {
                 return $cached;
             }
         } catch (\Throwable) {
@@ -65,6 +66,7 @@ class Setting extends Model
         try {
             $result = static::query()->pluck('value', 'key');
             Cache::put(static::$cacheKey, $result, 3600);
+
             return $result;
         } catch (\Throwable) {
             // Database not available (e.g. during installation)

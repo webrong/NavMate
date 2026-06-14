@@ -2,12 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Setting;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -42,14 +43,14 @@ class AppServiceProvider extends ServiceProvider
 
         // Password reset link → SPA frontend
         ResetPassword::createUrlUsing(function ($notifiable, $token) {
-            return config('app.url') . '/?reset-password=true&token=' . $token . '&email=' . urlencode($notifiable->getEmailForPasswordReset());
+            return config('app.url').'/?reset-password=true&token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
         });
 
         // Load mail settings from database (override config)
         try {
-            $mailHost = \App\Models\Setting::get('mail_host');
+            $mailHost = Setting::get('mail_host');
             if ($mailHost) {
-                $mailPassword = \App\Models\Setting::get('mail_password');
+                $mailPassword = Setting::get('mail_password');
                 if ($mailPassword) {
                     try {
                         $mailPassword = Crypt::decryptString($mailPassword);
@@ -61,17 +62,17 @@ class AppServiceProvider extends ServiceProvider
                 config([
                     'mail.default' => 'smtp',
                     'mail.mailers.smtp.host' => $mailHost,
-                    'mail.mailers.smtp.port' => (int) (\App\Models\Setting::get('mail_port') ?: 465),
-                    'mail.mailers.smtp.encryption' => \App\Models\Setting::get('mail_encryption') ?: 'ssl',
-                    'mail.mailers.smtp.username' => \App\Models\Setting::get('mail_username'),
+                    'mail.mailers.smtp.port' => (int) (Setting::get('mail_port') ?: 465),
+                    'mail.mailers.smtp.encryption' => Setting::get('mail_encryption') ?: 'ssl',
+                    'mail.mailers.smtp.username' => Setting::get('mail_username'),
                     'mail.mailers.smtp.password' => $mailPassword,
                 ]);
 
-                $fromAddress = \App\Models\Setting::get('mail_from_address');
+                $fromAddress = Setting::get('mail_from_address');
                 if ($fromAddress) {
                     config([
                         'mail.from.address' => $fromAddress,
-                        'mail.from.name' => \App\Models\Setting::get('mail_from_name') ?: config('app.name'),
+                        'mail.from.name' => Setting::get('mail_from_name') ?: config('app.name'),
                     ]);
                 }
             }

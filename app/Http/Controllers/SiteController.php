@@ -33,7 +33,7 @@ class SiteController extends Controller
 
         // Get or create visitor token
         $visitorToken = Cookie::get('visitor_token');
-        if (!$visitorToken) {
+        if (! $visitorToken) {
             $visitorToken = Str::random(32);
         }
 
@@ -59,13 +59,13 @@ class SiteController extends Controller
 
         $site = Site::find($request->site_id);
 
-        if (!$site) {
+        if (! $site) {
             return response()->json(['success' => false], 404);
         }
 
         // Deduplication: max 1 click per IP per site per hour (counter + log)
-        $dedupKey = 'click:' . $request->ip() . ':' . $site->id;
-        if (!Cache::has($dedupKey)) {
+        $dedupKey = 'click:'.$request->ip().':'.$site->id;
+        if (! Cache::has($dedupKey)) {
             $site->increment('clicks');
             Cache::put($dedupKey, true, 3600); // 1 hour window
 

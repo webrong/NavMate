@@ -234,11 +234,13 @@ class SampleDataSeeder extends Seeder
 
         foreach ($groups as $parentSlug => $children) {
             $parent = Category::where('slug', $parentSlug)->first();
-            if (!$parent) continue;
+            if (! $parent) {
+                continue;
+            }
 
             $childSort = 1;
             foreach ($children as $childName => $sites) {
-                $childSlug = Str::slug($childName) ?: 'cat-' . substr(md5($childName), 0, 8);
+                $childSlug = Str::slug($childName) ?: 'cat-'.substr(md5($childName), 0, 8);
                 $child = Category::firstOrCreate(
                     ['slug' => $childSlug],
                     [
@@ -257,7 +259,7 @@ class SampleDataSeeder extends Seeder
                             'category_id' => $child->id,
                             'title' => $s['title'],
                             'description' => $s['description'] ?? null,
-                            'favicon_url' => 'https://t2.gstatic.cn/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=64&url=' . urlencode($s['url']),
+                            'favicon_url' => 'https://t2.gstatic.cn/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&size=64&url='.urlencode($s['url']),
                             'is_public' => true,
                             'is_active' => true,
                             'sort_order' => $siteSort++,

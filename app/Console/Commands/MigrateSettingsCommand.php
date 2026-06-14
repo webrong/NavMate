@@ -12,8 +12,9 @@ class MigrateSettingsCommand extends Command
     public function handle()
     {
         $path = storage_path('app/settings.json');
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             $this->error('settings.json not found');
+
             return;
         }
 

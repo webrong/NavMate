@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AdminUser;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -19,9 +20,9 @@ return new class extends Migration
         });
 
         // Create default admin user (only when NOT running through installer)
-        if (!env('NAV_INSTALLING')) {
+        if (! env('NAV_INSTALLING')) {
             $password = env('ADMIN_DEFAULT_PASSWORD', str()->random(16));
-            \App\Models\AdminUser::create([
+            AdminUser::create([
                 'name' => 'Admin',
                 'email' => env('ADMIN_DEFAULT_EMAIL', 'admin@navigation.com'),
                 'password' => $password,

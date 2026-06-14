@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AdminUser;
+use App\Models\Setting;
+use Database\Seeders\SampleDataSeeder;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class InstallerService
 {
@@ -65,7 +67,7 @@ class InstallerService
         $dirItems = [];
         foreach ($dirs as $dir) {
             $dirName = basename($dir);
-            $fullPath = str_replace(base_path() . DIRECTORY_SEPARATOR, '', $dir);
+            $fullPath = str_replace(base_path().DIRECTORY_SEPARATOR, '', $dir);
             $dirItems[] = [
                 'label' => $fullPath,
                 'value' => is_writable($dir) ? '可写' : '不可写',
@@ -80,7 +82,7 @@ class InstallerService
         $allPass = true;
         foreach ($checks as $group) {
             foreach ($group['items'] as $item) {
-                if (!$item['pass'] && empty($item['optional'])) {
+                if (! $item['pass'] && empty($item['optional'])) {
                     $allPass = false;
                     break 2;
                 }
@@ -107,8 +109,8 @@ class InstallerService
                 \PDO::ATTR_TIMEOUT => 5,
             ]);
             if ($dbName) {
-                $pdo->exec("CREATE DATABASE IF NOT EXISTS `" . str_replace('`', '``', $dbName) . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                $pdo->exec("USE `" . str_replace('`', '``', $dbName) . "`");
+                $pdo->exec('CREATE DATABASE IF NOT EXISTS `'.str_replace('`', '``', $dbName).'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+                $pdo->exec('USE `'.str_replace('`', '``', $dbName).'`');
             }
 
             $result = ['success' => true, 'message' => '数据库连接成功'];
@@ -120,7 +122,7 @@ class InstallerService
 
             return $result;
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => '连接失败: ' . $e->getMessage()];
+            return ['success' => false, 'message' => '连接失败: '.$e->getMessage()];
         }
     }
 
@@ -145,7 +147,8 @@ class InstallerService
                     if ($count > 0) {
                         $info[] = "{$count} {$label}";
                     }
-                } catch (\Throwable) {}
+                } catch (\Throwable) {
+                }
             }
 
             if (empty($info)) {
@@ -168,14 +171,14 @@ class InstallerService
     public function testRedis(array $data): array
     {
         try {
-            if (!extension_loaded('redis')) {
+            if (! extension_loaded('redis')) {
                 return ['success' => false, 'message' => 'Redis 扩展未安装'];
             }
 
-            $redis = new \Redis();
+            $redis = new \Redis;
             $redis->connect($data['redis_host'] ?? '127.0.0.1', (int) ($data['redis_port'] ?? 6379), 5);
 
-            if (!empty($data['redis_password'])) {
+            if (! empty($data['redis_password'])) {
                 $redis->auth($data['redis_password']);
             }
 
@@ -184,7 +187,7 @@ class InstallerService
 
             return ['success' => true, 'message' => 'Redis 连接成功'];
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => '连接失败: ' . $e->getMessage()];
+            return ['success' => false, 'message' => '连接失败: '.$e->getMessage()];
         }
     }
 
@@ -216,7 +219,7 @@ class InstallerService
             $this->createAdmin($data);
 
             // 6. Seed sample data (direct, no artisan)
-            if (!empty($data['seed_sample'])) {
+            if (! empty($data['seed_sample'])) {
                 $this->runSeeder();
             }
 
@@ -228,7 +231,7 @@ class InstallerService
 
             return ['success' => true, 'message' => '安装成功！'];
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => '安装失败: ' . $e->getMessage()];
+            return ['success' => false, 'message' => '安装失败: '.$e->getMessage()];
         }
     }
 
@@ -264,15 +267,15 @@ class InstallerService
      */
     protected function generateAppKey(): void
     {
-        if (!empty(config('app.key'))) {
+        if (! empty(config('app.key'))) {
             return;
         }
 
-        $key = 'base64:' . base64_encode(random_bytes(32));
+        $key = 'base64:'.base64_encode(random_bytes(32));
 
         $envPath = base_path('.env');
         $content = file_get_contents($envPath);
-        $content = preg_replace('/^APP_KEY=.*/m', 'APP_KEY=' . $key, $content);
+        $content = preg_replace('/^APP_KEY=.*/m', 'APP_KEY='.$key, $content);
         file_put_contents($envPath, $content);
 
         config(['app.key' => $key]);
@@ -286,7 +289,7 @@ class InstallerService
         $migrator = app('migrator');
         $migrator->setConnection(config('database.default'));
 
-        if (!$migrator->repositoryExists()) {
+        if (! $migrator->repositoryExists()) {
             $migrator->getRepository()->createRepository();
         }
 
@@ -301,7 +304,7 @@ class InstallerService
      */
     protected function runSeeder(): void
     {
-        $seeder = new \Database\Seeders\SampleDataSeeder();
+        $seeder = new SampleDataSeeder;
         $seeder->setContainer(app());
         $seeder->__invoke();
     }
@@ -313,27 +316,27 @@ class InstallerService
     {
         $envPath = base_path('.env');
 
-        if (!file_exists($envPath)) {
+        if (! file_exists($envPath)) {
             copy(base_path('.env.example'), $envPath);
         }
 
         $content = file_get_contents($envPath);
 
         $replacements = [
-            'APP_NAME'        => $data['app_name'] ?? 'NavMate',
-            'APP_ENV'         => 'production',
-            'APP_DEBUG'       => 'false',
-            'APP_URL'         => $data['app_url'] ?? 'http://localhost',
-            'APP_LOCALE'      => 'zh_CN',
-            'DB_CONNECTION'   => 'mysql',
-            'DB_HOST'         => $data['db_host'] ?? '127.0.0.1',
-            'DB_PORT'         => $data['db_port'] ?? '3306',
-            'DB_DATABASE'     => $data['db_database'] ?? '',
-            'DB_USERNAME'     => $data['db_username'] ?? '',
-            'DB_PASSWORD'     => $data['db_password'] ?? '',
-            'CACHE_STORE'     => $data['cache_store'] ?? 'database',
-            'SESSION_DRIVER'  => ($data['cache_store'] ?? 'database') === 'redis' ? 'redis' : 'database',
-            'NAV_INSTALLING'  => 'true',
+            'APP_NAME' => $data['app_name'] ?? 'NavMate',
+            'APP_ENV' => 'production',
+            'APP_DEBUG' => 'false',
+            'APP_URL' => $data['app_url'] ?? 'http://localhost',
+            'APP_LOCALE' => 'zh_CN',
+            'DB_CONNECTION' => 'mysql',
+            'DB_HOST' => $data['db_host'] ?? '127.0.0.1',
+            'DB_PORT' => $data['db_port'] ?? '3306',
+            'DB_DATABASE' => $data['db_database'] ?? '',
+            'DB_USERNAME' => $data['db_username'] ?? '',
+            'DB_PASSWORD' => $data['db_password'] ?? '',
+            'CACHE_STORE' => $data['cache_store'] ?? 'database',
+            'SESSION_DRIVER' => ($data['cache_store'] ?? 'database') === 'redis' ? 'redis' : 'database',
+            'NAV_INSTALLING' => 'true',
         ];
 
         if (($data['cache_store'] ?? 'database') === 'redis') {
@@ -344,7 +347,7 @@ class InstallerService
 
         foreach ($replacements as $key => $value) {
             $escaped = (str_contains($value, ' ') || str_contains($value, '#') || preg_match('/[\s\'"\\\\]/', $value))
-                ? '"' . addslashes($value) . '"'
+                ? '"'.addslashes($value).'"'
                 : $value;
 
             if (preg_match("/^{$key}=/m", $content)) {
@@ -364,7 +367,7 @@ class InstallerService
      */
     protected function createAdmin(array $data): void
     {
-        \App\Models\AdminUser::updateOrCreate(
+        AdminUser::updateOrCreate(
             ['email' => $data['admin_email'] ?? 'admin@navigation.com'],
             [
                 'name' => $data['admin_name'] ?? 'Admin',
@@ -383,7 +386,7 @@ class InstallerService
             'site_name' => $data['app_name'] ?? '导航',
         ];
 
-        if (empty($data['skip_mail']) && !empty($data['mail_host'])) {
+        if (empty($data['skip_mail']) && ! empty($data['mail_host'])) {
             $settings['mail_host'] = $data['mail_host'];
             $settings['mail_port'] = (string) ($data['mail_port'] ?? 465);
             $settings['mail_encryption'] = $data['mail_encryption'] ?? 'ssl';
@@ -391,12 +394,12 @@ class InstallerService
             $settings['mail_from_address'] = $data['mail_from_address'] ?? '';
             $settings['mail_from_name'] = $data['mail_from_name'] ?? $data['app_name'] ?? '';
 
-            if (!empty($data['mail_password'])) {
+            if (! empty($data['mail_password'])) {
                 $settings['mail_password'] = Crypt::encryptString($data['mail_password']);
             }
         }
 
-        \App\Models\Setting::setMany($settings);
+        Setting::setMany($settings);
     }
 
     /**

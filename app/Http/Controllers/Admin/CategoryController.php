@@ -36,7 +36,7 @@ class CategoryController extends Controller
     private function buildChildren($parent, $all): void
     {
         $children = $all->where('parent_id', $parent->id)->values();
-        $children->each(fn($c) => $this->buildChildren($c, $all));
+        $children->each(fn ($c) => $this->buildChildren($c, $all));
         $parent->setAttribute('children', $children->values()->all());
     }
 
@@ -52,12 +52,12 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|integer|exists:categories,id',
         ]);
 
-        if (!empty($data['parent_id']) && !$this->isValidParent(null, $data['parent_id'])) {
+        if (! empty($data['parent_id']) && ! $this->isValidParent(null, $data['parent_id'])) {
             return response()->json(['message' => '无效的父级分类'], 422);
         }
 
         // Remove null values so database defaults apply (icon, sort_order, etc.)
-        $data = array_filter($data, fn($v) => !is_null($v));
+        $data = array_filter($data, fn ($v) => ! is_null($v));
 
         try {
             $category = Category::create($data);
@@ -68,8 +68,9 @@ class CategoryController extends Controller
                 'data' => $data,
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
-                'message' => '创建失败: ' . $e->getMessage(),
+                'message' => '创建失败: '.$e->getMessage(),
             ], 500);
         }
 
@@ -80,7 +81,7 @@ class CategoryController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:100',
-            'slug' => 'required|string|max:100|unique:categories,slug,' . $category->id,
+            'slug' => 'required|string|max:100|unique:categories,slug,'.$category->id,
             'description' => 'nullable|string|max:255',
             'icon' => 'nullable|string|max:10',
             'sort_order' => 'nullable|integer',
@@ -94,12 +95,12 @@ class CategoryController extends Controller
                 return response()->json(['message' => '不能将自己设为父级分类'], 422);
             }
             // Cannot set a descendant as parent (would create circular reference)
-            if (!empty($data['parent_id']) && !$this->isValidParent($category->id, $data['parent_id'])) {
+            if (! empty($data['parent_id']) && ! $this->isValidParent($category->id, $data['parent_id'])) {
                 return response()->json(['message' => '不能将子级分类设为父级，会产生循环引用'], 422);
             }
         }
 
-        $category->update(array_filter($data, fn($v) => !is_null($v)));
+        $category->update(array_filter($data, fn ($v) => ! is_null($v)));
         $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '更新成功']);
@@ -144,12 +145,14 @@ class CategoryController extends Controller
 
         $category->delete();
         $this->clearDashboardCache();
+
         return response()->json(['code' => 0, 'msg' => '删除成功']);
     }
 
     public function tree(): JsonResponse
     {
         $categories = Category::active()->ordered()->get();
+
         return response()->json(['code' => 0, 'data' => $categories]);
     }
 }

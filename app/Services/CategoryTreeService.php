@@ -28,12 +28,13 @@ class CategoryTreeService
             $category->sites = $sitesByCategory->get($category->id, collect());
         });
 
-        $childCategories = $allCategories->filter(fn($c) => $c->parent_id !== null);
-        $parentCategories = $allCategories->filter(fn($c) => $c->parent_id === null);
+        $childCategories = $allCategories->filter(fn ($c) => $c->parent_id !== null);
+        $parentCategories = $allCategories->filter(fn ($c) => $c->parent_id === null);
 
         return $parentCategories->map(function ($parent) use ($childCategories) {
             $parent->children = $childCategories->where('parent_id', $parent->id)->values();
+
             return $parent;
-        })->filter(fn($c) => $c->sites->isNotEmpty() || $c->children->isNotEmpty())->values();
+        })->filter(fn ($c) => $c->sites->isNotEmpty() || $c->children->isNotEmpty())->values();
     }
 }

@@ -52,6 +52,7 @@ class PrerenderForBots
                 return true;
             }
         }
+
         return false;
     }
 
@@ -90,8 +91,8 @@ class PrerenderForBots
         }
 
         $siteName = $allSettings->get('site_name') ?: config('app.name', '导航');
-        $siteDescription = $allSettings->get('site_description') ?: ($siteName . ' - 现代化网址导航系统');
-        $siteKeywords = $allSettings->get('site_keywords') ?: ($siteName . ',网址导航,导航站,NavMate');
+        $siteDescription = $allSettings->get('site_description') ?: ($siteName.' - 现代化网址导航系统');
+        $siteKeywords = $allSettings->get('site_keywords') ?: ($siteName.',网址导航,导航站,NavMate');
         $siteLogo = $allSettings->get('site_logo') ?: asset('static/image/logo.svg');
         $siteUrl = config('app.url');
         $footerText = $allSettings->get('footer_text') ?: '';

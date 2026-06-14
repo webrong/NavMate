@@ -13,6 +13,7 @@ class AdController extends Controller
     public function index(): JsonResponse
     {
         $ads = Ad::orderBy('sort_order')->orderBy('id')->get();
+
         return response()->json(['code' => 0, 'data' => $ads]);
     }
 
@@ -53,6 +54,7 @@ class AdController extends Controller
     public function destroy(Ad $ad): JsonResponse
     {
         $ad->delete();
+
         return response()->json(['code' => 0, 'msg' => '删除成功']);
     }
 

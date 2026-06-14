@@ -22,13 +22,15 @@ class UpdateCommand extends Command
         $this->info('Checking for updates...');
         $result = $updater->checkForUpdate();
 
-        if (!empty($result['error'])) {
+        if (! empty($result['error'])) {
             $this->error($result['error']);
+
             return 1;
         }
 
-        if (empty($result['has_update']) && !$this->option('force')) {
+        if (empty($result['has_update']) && ! $this->option('force')) {
             $this->info('Already on the latest version.');
+
             return 0;
         }
 
@@ -38,16 +40,18 @@ class UpdateCommand extends Command
         if ($this->option('check')) {
             $hasUpdate = $result['has_update'] ? 'Yes' : 'No';
             $this->info("Update available: {$hasUpdate}");
-            if (!empty($result['changelog'])) {
+            if (! empty($result['changelog'])) {
                 $this->newLine();
                 $this->info('Changelog:');
                 $this->line($result['changelog']);
             }
+
             return 0;
         }
 
-        if (!$this->option('force') && !$this->confirm("Update from {$currentVersion} to {$latestVersion}?")) {
+        if (! $this->option('force') && ! $this->confirm("Update from {$currentVersion} to {$latestVersion}?")) {
             $this->info('Update cancelled.');
+
             return 0;
         }
 
@@ -58,10 +62,12 @@ class UpdateCommand extends Command
         if ($result['success']) {
             $this->info('');
             $this->info($result['message']);
+
             return 0;
         }
 
         $this->error($result['message']);
+
         return 1;
     }
 }

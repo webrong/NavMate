@@ -1,5 +1,10 @@
 <?php
 
+use App\Http\Middleware\CheckMaintenanceMode;
+use App\Http\Middleware\EnsureIsAdmin;
+use App\Http\Middleware\PrerenderForBots;
+use App\Http\Middleware\RedirectIfNotInstalled;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,18 +17,19 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
+            'admin' => EnsureIsAdmin::class,
         ]);
         $middleware->web([
-            \App\Http\Middleware\RedirectIfNotInstalled::class,
-            \App\Http\Middleware\PrerenderForBots::class,
-            \App\Http\Middleware\CheckMaintenanceMode::class,
-            \App\Http\Middleware\SecurityHeaders::class,
+            RedirectIfNotInstalled::class,
+            PrerenderForBots::class,
+            CheckMaintenanceMode::class,
+            SecurityHeaders::class,
         ]);
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->expectsJson()) {
                 return null;
             }
+
             return route('admin.login');
         });
     })

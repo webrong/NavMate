@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 
 class SecurityHeaders
 {
@@ -12,7 +13,7 @@ class SecurityHeaders
         // Generate a per-request CSP nonce
         $nonce = base64_encode(random_bytes(16));
         // Share nonce with Blade views so they can add nonce="{{ $cspNonce }}" to script/style tags
-        \Illuminate\Support\Facades\View::share('cspNonce', $nonce);
+        View::share('cspNonce', $nonce);
 
         $response = $next($request);
 

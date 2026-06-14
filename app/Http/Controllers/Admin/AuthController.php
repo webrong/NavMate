@@ -25,18 +25,20 @@ class AuthController extends Controller
         ]);
 
         $email = $credentials['email'];
-        $throttleKey = 'admin_login:' . $email . ':' . $request->ip();
+        $throttleKey = 'admin_login:'.$email.':'.$request->ip();
 
         // Check rate limit: max 5 attempts per minute
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
+
             return response()->json(['message' => "登录尝试次数过多，请{$seconds}秒后再试"], 429);
         }
 
         $admin = AdminUser::where('email', $email)->first();
 
-        if (!$admin || !Hash::check($credentials['password'], $admin->password)) {
+        if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
             RateLimiter::hit($throttleKey, 60);
+
             return response()->json(['message' => '账号或密码错误'], 422);
         }
 
@@ -65,6 +67,7 @@ class AuthController extends Controller
         if ($admin) {
             return response()->json($admin->only(['id', 'name', 'email']));
         }
+
         return response()->json(null);
     }
 }

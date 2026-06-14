@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Site;
+use Carbon\Carbon;
 use Illuminate\Http\Response;
 
 class SeoController extends Controller
@@ -25,7 +26,7 @@ class SeoController extends Controller
 
         $maxUpdated = Site::max('updated_at');
         $lastModified = $maxUpdated
-            ? (new \Carbon\Carbon($maxUpdated))->toIso8601String()
+            ? (new Carbon($maxUpdated))->toIso8601String()
             : now()->toIso8601String();
 
         return response()

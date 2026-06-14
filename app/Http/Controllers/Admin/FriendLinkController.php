@@ -13,6 +13,7 @@ class FriendLinkController extends Controller
     public function index(): JsonResponse
     {
         $links = FriendLink::orderBy('sort_order')->orderBy('id')->get();
+
         return response()->json(['code' => 0, 'data' => $links]);
     }
 
@@ -49,6 +50,7 @@ class FriendLinkController extends Controller
     public function destroy(FriendLink $friendLink): JsonResponse
     {
         $friendLink->delete();
+
         return response()->json(['code' => 0, 'msg' => '删除成功']);
     }
 

@@ -9,13 +9,13 @@ class UrlFetcherService
 {
     public function fetch(string $url): array
     {
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
             return ['title' => null, 'favicon_url' => null];
         }
 
         // SSRF protection: resolve DNS once and pin the IP for the request
         $host = parse_url($url, PHP_URL_HOST);
-        if (!$host) {
+        if (! $host) {
             return ['title' => null, 'favicon_url' => null];
         }
 
@@ -23,6 +23,7 @@ class UrlFetcherService
         $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
         if (in_array(strtolower($host), $blockedHosts, true)) {
             Log::warning('UrlFetcher blocked internal hostname', ['url' => $url]);
+
             return ['title' => null, 'favicon_url' => null];
         }
 
@@ -35,6 +36,7 @@ class UrlFetcherService
 
         if (self::isInternalIp($resolvedIp)) {
             Log::warning('UrlFetcher blocked internal IP', ['url' => $url, 'ip' => $resolvedIp]);
+
             return ['title' => null, 'favicon_url' => null];
         }
 
@@ -51,7 +53,7 @@ class UrlFetcherService
                 ])
                 ->get($url);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return ['title' => null, 'favicon_url' => null];
             }
 
@@ -65,6 +67,7 @@ class UrlFetcherService
             ];
         } catch (\Throwable $e) {
             Log::warning('UrlFetcher failed', ['url' => $url, 'error' => $e->getMessage()]);
+
             return ['title' => null, 'favicon_url' => null];
         }
     }
@@ -84,8 +87,10 @@ class UrlFetcherService
             $title = trim($matches[1]);
             // Decode HTML entities
             $title = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
             return $title !== '' ? $title : null;
         }
+
         return null;
     }
 
@@ -104,12 +109,11 @@ class UrlFetcherService
         $scheme = $parsed['scheme'] ?? 'https';
         $host = $parsed['host'] ?? '';
         if ($host) {
-            return $scheme . '://' . $host . '/favicon.ico';
+            return $scheme.'://'.$host.'/favicon.ico';
         }
 
         return null;
     }
-
 
     private function resolveUrl(string $base, string $relative): string
     {
@@ -121,14 +125,14 @@ class UrlFetcherService
         $parsed = parse_url($base);
         $scheme = $parsed['scheme'] ?? 'https';
         $host = $parsed['host'] ?? '';
-        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
 
         if (str_starts_with($relative, '//')) {
-            return $scheme . ':' . $relative;
+            return $scheme.':'.$relative;
         }
 
         if (str_starts_with($relative, '/')) {
-            return $scheme . '://' . $host . $port . $relative;
+            return $scheme.'://'.$host.$port.$relative;
         }
 
         // Relative path
@@ -138,6 +142,6 @@ class UrlFetcherService
             $dir = '/';
         }
 
-        return $scheme . '://' . $host . $port . $dir . '/' . $relative;
+        return $scheme.'://'.$host.$port.$dir.'/'.$relative;
     }
 }

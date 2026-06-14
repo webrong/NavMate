@@ -1,24 +1,26 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController as ApiAuthController;
-use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
-use App\Http\Controllers\Api\FavoriteController;
-use App\Http\Controllers\SeoController;
-use App\Http\Controllers\Api\UserLayoutController;
-use App\Http\Controllers\Api\UserLinkController;
-use App\Http\Controllers\InstallController;
-use App\Http\Controllers\SiteController;
-use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\AdController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BookmarkImportController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FriendLinkController;
-use App\Http\Controllers\Admin\AdController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SiteManagementController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\AuthController as ApiAuthController;
+use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
+use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\UserLayoutController;
+use App\Http\Controllers\Api\UserLinkController;
+use App\Http\Controllers\InstallController;
+use App\Http\Controllers\SeoController;
+use App\Http\Controllers\SiteController;
+use App\Models\Ad;
+use App\Models\FriendLink;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -67,11 +69,11 @@ Route::get('/api/search', [SiteController::class, 'search'])->middleware('thrott
 Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middleware('throttle:60,1')->name('api.categories');
 Route::get('/api/settings', [SettingsController::class, 'publicSettings'])->middleware('throttle:60,1')->name('api.settings');
 Route::get('/api/friend-links', function () {
-    return response()->json(\App\Models\FriendLink::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get());
+    return response()->json(FriendLink::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get());
 })->middleware('throttle:60,1');
 
 Route::get('/api/ads', function () {
-    return response()->json(\App\Models\Ad::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'title', 'image_url', 'link_url', 'position', 'target']));
+    return response()->json(Ad::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'title', 'image_url', 'link_url', 'position', 'target']));
 })->middleware('throttle:60,1');
 
 // Auth API

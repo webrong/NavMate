@@ -32,6 +32,7 @@ class InstallCommand extends Command
         if (InstallerService::isInstalled()) {
             $this->error('The application is already installed.');
             $this->info('Delete storage/app/installed to re-run the installer.');
+
             return 1;
         }
 
@@ -41,15 +42,16 @@ class InstallCommand extends Command
         $adminEmail = $this->option('admin-email');
         $adminPassword = $this->option('admin-password');
 
-        if (!$adminEmail) {
+        if (! $adminEmail) {
             $adminEmail = $this->ask('Admin email address');
         }
-        if (!$adminPassword) {
+        if (! $adminPassword) {
             $adminPassword = $this->secret('Admin password (min 8 chars)');
         }
 
         if (strlen($adminPassword) < 8) {
             $this->error('Password must be at least 8 characters.');
+
             return 1;
         }
 
@@ -63,29 +65,30 @@ class InstallCommand extends Command
             'db_password' => $this->option('db-password'),
         ]);
 
-        if (!$result['success']) {
-            $this->error('Database connection failed: ' . $result['message']);
+        if (! $result['success']) {
+            $this->error('Database connection failed: '.$result['message']);
+
             return 1;
         }
         $this->info('Database connection successful.');
 
         $data = [
-            'db_host'        => $this->option('db-host'),
-            'db_port'        => (int) $this->option('db-port'),
-            'db_database'    => $this->option('db-database'),
-            'db_username'    => $this->option('db-username'),
-            'db_password'    => $this->option('db-password'),
-            'cache_store'    => $this->option('cache-store'),
-            'redis_host'     => $this->option('redis-host'),
-            'redis_port'     => (int) $this->option('redis-port'),
+            'db_host' => $this->option('db-host'),
+            'db_port' => (int) $this->option('db-port'),
+            'db_database' => $this->option('db-database'),
+            'db_username' => $this->option('db-username'),
+            'db_password' => $this->option('db-password'),
+            'cache_store' => $this->option('cache-store'),
+            'redis_host' => $this->option('redis-host'),
+            'redis_port' => (int) $this->option('redis-port'),
             'redis_password' => $this->option('redis-password'),
-            'app_name'       => $this->option('app-name'),
-            'app_url'        => $this->option('app-url'),
-            'admin_name'     => $this->option('admin-name'),
-            'admin_email'    => $adminEmail,
+            'app_name' => $this->option('app-name'),
+            'app_url' => $this->option('app-url'),
+            'admin_name' => $this->option('admin-name'),
+            'admin_email' => $adminEmail,
             'admin_password' => $adminPassword,
-            'seed_sample'    => $this->option('seed'),
-            'skip_mail'      => $this->option('skip-mail'),
+            'seed_sample' => $this->option('seed'),
+            'skip_mail' => $this->option('skip-mail'),
         ];
 
         $result = $installer->install($data);
@@ -95,10 +98,12 @@ class InstallCommand extends Command
             $this->info('Installation complete!');
             $this->info("Admin login: {$data['app_url']}/admin/login");
             $this->info("Email: {$adminEmail}");
+
             return 0;
         }
 
-        $this->error('Installation failed: ' . $result['message']);
+        $this->error('Installation failed: '.$result['message']);
+
         return 1;
     }
 }

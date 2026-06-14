@@ -70,11 +70,11 @@ class SystemInfoService
             $driver = config('database.default');
             $version = DB::selectOne('SELECT VERSION() as v')?->v ?? 'unknown';
 
-            $dbName = config('database.connections.' . $driver . '.database');
+            $dbName = config('database.connections.'.$driver.'.database');
             $sizeResult = DB::selectOne(
-                "SELECT ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) as size_mb
+                'SELECT ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) as size_mb
                  FROM information_schema.TABLES
-                 WHERE TABLE_SCHEMA = ?",
+                 WHERE TABLE_SCHEMA = ?',
                 [$dbName]
             );
             $sizeMb = $sizeResult?->size_mb ?? 0;
@@ -84,11 +84,11 @@ class SystemInfoService
 
             $tables = [];
             $tableRows = DB::select(
-                "SELECT TABLE_NAME as table_name, TABLE_ROWS as table_rows,
+                'SELECT TABLE_NAME as table_name, TABLE_ROWS as table_rows,
                         ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) as size_mb
                  FROM information_schema.TABLES
                  WHERE TABLE_SCHEMA = ?
-                 ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC",
+                 ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC',
                 [$dbName]
             );
             foreach ($tableRows as $row) {
@@ -191,6 +191,7 @@ class SystemInfoService
         if (file_exists($path)) {
             return json_decode(file_get_contents($path), true) ?: [];
         }
+
         return [];
     }
 
@@ -205,6 +206,7 @@ class SystemInfoService
             $bytes /= 1024;
             $i++;
         }
-        return round($bytes, 1) . $units[$i];
+
+        return round($bytes, 1).$units[$i];
     }
 }

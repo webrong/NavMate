@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -13,8 +14,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password as PasswordFacade;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -24,13 +25,14 @@ class AuthController extends Controller
         if ($user) {
             return response()->json($user);
         }
+
         return response()->json(null);
     }
 
     public function register(Request $request): JsonResponse
     {
         // Check if registration is enabled
-        if (\App\Models\Setting::get('enable_register') === '0') {
+        if (Setting::get('enable_register') === '0') {
             return response()->json(['message' => '注册功能已关闭'], 403);
         }
 
@@ -71,25 +73,28 @@ class AuthController extends Controller
         $credentials = [$field => $login, 'password' => $data['password']];
 
         // Login throttling: max 5 failures per 5 minutes per login+IP
-        $throttleKey = 'login:' . $login . ':' . $request->ip();
-        $ipKey = 'login_ip:' . $request->ip();
+        $throttleKey = 'login:'.$login.':'.$request->ip();
+        $ipKey = 'login_ip:'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
             Log::warning('登录被锁定', ['ip' => $request->ip()]);
+
             return response()->json(['message' => "登录尝试次数过多，请{$seconds}秒后再试"], 429);
         }
 
         // Per-IP limit: max 20 failures per 5 minutes regardless of email
         if (RateLimiter::tooManyAttempts($ipKey, 20)) {
             Log::warning('IP登录被锁定', ['ip' => $request->ip()]);
+
             return response()->json(['message' => '登录尝试次数过多，请稍后再试'], 429);
         }
 
-        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             RateLimiter::hit($throttleKey, 300);
             RateLimiter::hit($ipKey, 300);
             Log::info('登录失败', ['ip' => $request->ip()]);
+
             return response()->json(['message' => '用户名或密码错误'], 422);
         }
 
@@ -124,7 +129,7 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($request->route('id'));
 
-        if (!hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+        if (! hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
             return redirect('/?email-verified=false');
         }
 
@@ -149,7 +154,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || $user->hasVerifiedEmail()) {
+        if (! $user || $user->hasVerifiedEmail()) {
             return response()->json(['message' => $genericMessage]);
         }
 
@@ -190,10 +195,12 @@ class AuthController extends Controller
 
         if ($status === PasswordFacade::PASSWORD_RESET) {
             Log::info('密码重置成功', ['email' => $request->email, 'ip' => $request->ip()]);
+
             return response()->json(['message' => '密码重置成功，请使用新密码登录']);
         }
 
         Log::warning('密码重置失败', ['email' => $request->email, 'ip' => $request->ip()]);
+
         return response()->json(['message' => '重置链接无效或已过期'], 422);
     }
 
@@ -211,8 +218,8 @@ class AuthController extends Controller
             $user->name = $data['name'];
         }
 
-        if (!empty($data['password'])) {
-            if (!Hash::check($data['current_password'], $user->password)) {
+        if (! empty($data['password'])) {
+            if (! Hash::check($data['current_password'], $user->password)) {
                 return response()->json(['message' => '当前密码不正确'], 422);
             }
             $user->password = $data['password'];
@@ -240,7 +247,7 @@ class AuthController extends Controller
         }
 
         $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_WEBP];
-        if (!in_array($imageInfo[2], $allowedTypes)) {
+        if (! in_array($imageInfo[2], $allowedTypes)) {
             return response()->json(['message' => '不支持的图片格式'], 422);
         }
 
