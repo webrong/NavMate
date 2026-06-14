@@ -1,0 +1,125 @@
+name: Release
+
+# Triggered when a release is published in the GitHub UI (or via API).
+# Builds a self-contained upgrade package (with vendor + frontend build)
+# and attaches it to the release as a .zip asset. Users on older versions
+# will see this release via the in-app "check for updates" feature.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build a package for (e.g. v1.1.0)'
+        required: true
+
+permissions:
+  contents: write   # needed to upload assets to the release
+
+jobs:
+  build-package:
+    name: Build & Attach Upgrade Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "name=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.tag.outputs.name }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, openssl, tokenizer, xml, curl, gd, fileinfo, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install PHP dependencies (production)
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify build artifacts
+        run: |
+          test -f artisan || { echo "::error::artisan missing"; exit 1; }
+          test -f composer.json || { echo "::error::composer.json missing"; exit 1; }
+          test -f vendor/autoload.php || { echo "::error::vendor/autoload.php missing"; exit 1; }
+          test -f public/build/manifest.json || { echo "::error::public/build/manifest.json missing"; exit 1; }
+
+      - name: Assemble package
+        run: |
+          # Package name without the leading 'v' on the tag (v1.1.0 -> 1.1.0)
+          VERSION="${{ steps.tag.outputs.name }}"
+          VERSION_NUM="${VERSION#v}"
+          PKG_DIR="navmate-${VERSION}"
+          ZIP_NAME="navmate-${VERSION}.zip"
+
+          mkdir -p "stage/${PKG_DIR}"
+
+          # Copy the whole project into the staging subdir, excluding things
+          # that UpdateService preserves (or that should never ship).
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.env' \
+            --exclude='storage' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.phpunit.cache' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='*.zip' \
+            --exclude='.DS_Store' \
+            --exclude='Thumbs.db' \
+            ./ "stage/${PKG_DIR}/"
+
+          # Build the zip from inside stage/ so the archive contains a single
+          # root subdir (UpdateService's extractAndReplace() auto-detects this).
+          (cd stage && zip -r "../${ZIP_NAME}" "${PKG_DIR}" -q)
+
+          echo "zip_name=${ZIP_NAME}" >> $GITHUB_ENV
+          echo "zip_path=$(pwd)/${ZIP_NAME}" >> $GITHUB_ENV
+          echo "## Upgrade package" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Built \`${ZIP_NAME}\` (\`$(du -h "${ZIP_NAME}" | cut -f1)\`) from tag \`${VERSION}\`." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Contents:" >> $GITHUB_STEP_SUMMARY
+          echo '- `artisan`, `composer.json`, `composer.lock`' >> $GITHUB_STEP_SUMMARY
+          echo '- `vendor/` (production, optimized autoloader, no dev deps)' >> $GITHUB_STEP_SUMMARY
+          echo '- `public/build/` (Vite build output)' >> $GITHUB_STEP_SUMMARY
+          echo '- `app/`, `resources/`, `routes/`, `config/`, `database/`, etc.' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload asset to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use the official GitHub CLI (preinstalled on runners) to upload
+          # the zip as a release asset. Avoids third-party actions.
+          gh release upload "${{ steps.tag.outputs.name }}" "${{ env.zip_path }}" --clobber
+
+      - name: Upload artifact (manual dispatch)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.zip_name }}
+          path: ${{ env.zip_path }}
