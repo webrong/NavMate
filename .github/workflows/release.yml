@@ -1,24 +1,30 @@
 name: Release
 
-# Triggered when a release is published in the GitHub UI (or via API).
-# Builds a self-contained upgrade package (with vendor + frontend build)
-# and attaches it to the release as a .zip asset. Users on older versions
-# will see this release via the in-app "check for updates" feature.
+# Triggered by pushing a version tag (v1.0.0, v1.1.0, ...).
+# Builds a self-contained upgrade package (vendor + frontend build),
+# creates a GitHub Release for that tag, and attaches the zip as an asset.
+#
+# Usage: tag a commit and push it.
+#   git tag -a v1.1.0 -m "v1.1.0: release notes"
+#   git push origin v1.1.0
+#
+# Everything else (build + release + asset upload) is automated.
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build a package for (e.g. v1.1.0)'
+        description: 'Existing tag to build a package for (e.g. v1.1.0)'
         required: true
 
 permissions:
-  contents: write   # needed to upload assets to the release
+  contents: write   # needed to create the release and upload assets
 
 jobs:
   build-package:
-    name: Build & Attach Upgrade Package
+    name: Build & Publish Release
     runs-on: ubuntu-latest
 
     steps:
@@ -28,13 +34,15 @@ jobs:
           if [ -n "${{ inputs.tag }}" ]; then
             echo "name=${{ inputs.tag }}" >> $GITHUB_OUTPUT
           else
-            echo "name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+            # GITHUB_REF for a tag push looks like refs/tags/v1.1.0
+            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.tag.outputs.name }}
+          fetch-depth: 0   # full history for changelog generation
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -66,18 +74,52 @@ jobs:
           test -f vendor/autoload.php || { echo "::error::vendor/autoload.php missing"; exit 1; }
           test -f public/build/manifest.json || { echo "::error::public/build/manifest.json missing"; exit 1; }
 
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          # Collect commit subjects since the previous tag (or all if first tag).
+          TAG="${{ steps.tag.outputs.name }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..${TAG}"
+            LOGS=$(git log --pretty=format:'- %s' "$RANGE")
+          else
+            LOGS=$(git log --pretty=format:'- %s' "$TAG" | head -30)
+          fi
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "## 更新内容"
+            echo ""
+            echo "$LOGS"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 升级方式"
+            echo ""
+            echo "### 已部署用户（推荐）"
+            echo "1. 登录后台管理"
+            echo "2. 进入「系统管理 → 系统升级」"
+            echo "3. 点击「检查更新」，看到 ${TAG}"
+            echo "4. 点击「立即升级」，等待自动完成"
+            echo ""
+            echo "### 手动升级"
+            echo "1. 下载下方 \`${TAG#v}\` 的 zip"
+            echo "2. 解压覆盖项目目录（保留 \`.env\` 和 \`storage\`）"
+            echo "3. 运行 \`php artisan migrate --force\`"
+            echo "4. 运行 \`php artisan config:clear && php artisan cache:clear\`"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Assemble package
         run: |
-          # Package name without the leading 'v' on the tag (v1.1.0 -> 1.1.0)
           VERSION="${{ steps.tag.outputs.name }}"
-          VERSION_NUM="${VERSION#v}"
           PKG_DIR="navmate-${VERSION}"
           ZIP_NAME="navmate-${VERSION}.zip"
 
           mkdir -p "stage/${PKG_DIR}"
 
-          # Copy the whole project into the staging subdir, excluding things
-          # that UpdateService preserves (or that should never ship).
+          # Copy project into staging, excluding things UpdateService preserves
+          # (or that must never ship).
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
@@ -92,33 +134,41 @@ jobs:
             --exclude='Thumbs.db' \
             ./ "stage/${PKG_DIR}/"
 
-          # Build the zip from inside stage/ so the archive contains a single
-          # root subdir (UpdateService's extractAndReplace() auto-detects this).
+          # Zip from inside stage/ so the archive has a single root subdir
+          # (UpdateService's extractAndReplace auto-detects this).
           (cd stage && zip -r "../${ZIP_NAME}" "${PKG_DIR}" -q)
 
           echo "zip_name=${ZIP_NAME}" >> $GITHUB_ENV
           echo "zip_path=$(pwd)/${ZIP_NAME}" >> $GITHUB_ENV
-          echo "## Upgrade package" >> $GITHUB_STEP_SUMMARY
+          echo "## Upgrade package built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Built \`${ZIP_NAME}\` (\`$(du -h "${ZIP_NAME}" | cut -f1)\`) from tag \`${VERSION}\`." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Contents:" >> $GITHUB_STEP_SUMMARY
-          echo '- `artisan`, `composer.json`, `composer.lock`' >> $GITHUB_STEP_SUMMARY
-          echo '- `vendor/` (production, optimized autoloader, no dev deps)' >> $GITHUB_STEP_SUMMARY
-          echo '- `public/build/` (Vite build output)' >> $GITHUB_STEP_SUMMARY
-          echo '- `app/`, `resources/`, `routes/`, `config/`, `database/`, etc.' >> $GITHUB_STEP_SUMMARY
+          echo "- File: \`${ZIP_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Size: \`$(du -h "${ZIP_NAME}" | cut -f1)\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload asset to release
-        if: github.event_name == 'release'
+      - name: Create or update release with asset
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use the official GitHub CLI (preinstalled on runners) to upload
-          # the zip as a release asset. Avoids third-party actions.
-          gh release upload "${{ steps.tag.outputs.name }}" "${{ env.zip_path }}" --clobber
+          TAG="${{ steps.tag.outputs.name }}"
 
-      - name: Upload artifact (manual dispatch)
-        if: github.event_name != 'release'
+          # Create the release (with auto-generated changelog as notes), or,
+          # if it already exists (e.g. user created it in the web UI first),
+          # just upload/replace the asset.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists — uploading asset."
+            gh release upload "${TAG}" "${{ env.zip_path }}" --clobber
+          else
+            echo "Creating release ${TAG}."
+            gh release create "${TAG}" \
+              --title "${TAG}" \
+              --notes-file - \
+              "${{ env.zip_path }}" <<< "${{ steps.changelog.outputs.body }}"
+          fi
+
+      - name: Upload as artifact (manual dispatch only)
+        if: github.event_name != 'push'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.zip_name }}
