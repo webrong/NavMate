@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -29,3 +30,4 @@ Thumbs.db
 /.claude
 test_db.php
 navigation.sql
+*.zip
