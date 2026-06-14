@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,10 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'category_id', 'title', 'url', 'description',
     'favicon_url', 'is_public', 'is_active',
-    'clicks', 'sort_order',
+    'clicks', 'sort_order', 'visitor_token',
 ])]
 class Site extends Model
 {
+    use HasFactory;
+
     protected function casts(): array
     {
         return [

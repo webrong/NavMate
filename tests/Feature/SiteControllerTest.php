@@ -4,8 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Site;
-use App\Models\User;
-use App\Models\UserLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -70,7 +68,7 @@ class SiteControllerTest extends TestCase
     public function test_search_limits_query_length(): void
     {
         $longQuery = str_repeat('a', 300);
-        $response = $this->getJson('/api/search?q=' . $longQuery);
+        $response = $this->getJson('/api/search?q='.$longQuery);
 
         $response->assertOk();
     }

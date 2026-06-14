@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\UrlFetcherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 class SettingsController extends Controller
 {
@@ -122,7 +123,7 @@ class SettingsController extends Controller
 
         foreach ($data as $key => $value) {
             // Validate email format for mail fields only when non-empty
-            if ($key === 'mail_from_address' && $value !== null && $value !== '' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            if ($key === 'mail_from_address' && $value !== null && $value !== '' && ! filter_var($value, FILTER_VALIDATE_EMAIL)) {
                 continue;
             }
             if (in_array($key, self::BOOL_KEYS)) {
@@ -177,7 +178,7 @@ class SettingsController extends Controller
         // SSRF protection: block internal/private SMTP hosts
         $smtpHost = $data['mail_host'];
         $resolvedIp = gethostbyname($smtpHost);
-        if ($resolvedIp !== $smtpHost && \App\Services\UrlFetcherService::isInternalIp($resolvedIp)) {
+        if ($resolvedIp !== $smtpHost && UrlFetcherService::isInternalIp($resolvedIp)) {
             return response()->json(['code' => 1, 'msg' => 'SMTP 服务器地址不允许指向内网'], 422);
         }
 
@@ -196,14 +197,14 @@ class SettingsController extends Controller
             ],
             'mail.from' => [
                 'address' => $data['mail_from_address'],
-                'name' => $data['mail_from_name'] ?: config('app.name'),
+                'name' => ($data['mail_from_name'] ?? null) ?: config('app.name'),
             ],
         ]);
 
         try {
             Mail::raw('这是一封来自导航站系统设置的测试邮件，如果您收到了此邮件，说明邮件配置正确。', function ($message) use ($data) {
                 $message->to($data['to'])
-                    ->subject('邮件配置测试 - ' . config('app.name'));
+                    ->subject('邮件配置测试 - '.config('app.name'));
             });
 
             Log::info('测试邮件发送成功', ['to' => $data['to'], 'host' => $data['mail_host']]);
@@ -214,7 +215,7 @@ class SettingsController extends Controller
 
             return response()->json([
                 'code' => 1,
-                'msg' => '发送失败：' . $e->getMessage(),
+                'msg' => '发送失败：'.$e->getMessage(),
             ], 422);
         }
     }

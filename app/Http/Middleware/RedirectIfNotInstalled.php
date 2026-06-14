@@ -16,8 +16,9 @@ class RedirectIfNotInstalled
             return $next($request);
         }
 
-        // Skip in local/development environment
-        if (app()->environment('local')) {
+        // Skip in local/development environment (testing uses sqlite :memory:,
+        // so the install state is irrelevant and would only break tests)
+        if (app()->environment(['local', 'testing'])) {
             return $next($request);
         }
 
@@ -31,8 +32,10 @@ class RedirectIfNotInstalled
                         'error' => '应用已安装，如需重新安装请删除 storage/app/installed 文件',
                     ], 403);
                 }
+
                 return response()->view('errors.installed', [], 403);
             }
+
             return $next($request);
         }
 

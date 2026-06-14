@@ -37,14 +37,15 @@ class AuthControllerTest extends TestCase
 
     public function test_login_requires_email_verification(): void
     {
-        $user = User::create([
+        User::create([
             'name' => 'Unverified',
             'email' => 'unverified@example.com',
             'password' => 'P@ssw0rd!',
         ]);
 
+        // The login endpoint accepts a generic `login` field (email or username).
         $response = $this->postJson('/api/login', [
-            'email' => 'unverified@example.com',
+            'login' => 'unverified@example.com',
             'password' => 'P@ssw0rd!',
         ]);
 
@@ -54,7 +55,7 @@ class AuthControllerTest extends TestCase
 
     public function test_login_succeeds_for_verified_user(): void
     {
-        $user = User::create([
+        User::create([
             'name' => 'Verified',
             'email' => 'verified@example.com',
             'password' => 'P@ssw0rd!',
@@ -62,7 +63,7 @@ class AuthControllerTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/login', [
-            'email' => 'verified@example.com',
+            'login' => 'verified@example.com',
             'password' => 'P@ssw0rd!',
         ]);
 
@@ -117,7 +118,9 @@ class AuthControllerTest extends TestCase
         $response = $this->getJson('/api/user');
 
         $response->assertOk();
-        $response->assertExactJson(null);
+        // The controller returns response()->json(null) for guests. assertExactJson
+        // no longer accepts null (it requires an array), so verify the empty body.
+        $response->assertExactJson([]);
     }
 
     public function test_me_returns_user_when_authenticated(): void
