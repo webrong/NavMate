@@ -1,133 +1,109 @@
 <template>
   <div>
-    <a-card title="系统升级" :bordered="false">
-      <div style="margin-top: 16px">
-        <!-- 当前版本 + 检查更新 -->
-        <a-card size="small" style="margin-bottom: 16px">
-          <a-row align="middle" :gutter="16">
-            <a-col>
-              <div style="font-size: 13px; color: #999">当前版本</div>
-              <div style="font-size: 20px; font-weight: 600; color: #1677ff">{{ currentVersion }}</div>
-            </a-col>
-            <a-col flex="auto" style="text-align: right">
-              <a-button type="primary" :loading="checking" @click="checkUpdate">
-                检查更新
-              </a-button>
-            </a-col>
-          </a-row>
-        </a-card>
+    <!-- 当前版本卡片 -->
+    <div class="admin-card version-card">
+      <div class="version-card-body">
+        <div class="version-left">
+          <div class="icon-chip icon-chip--primary"><CloudUploadOutlined /></div>
+          <div>
+            <div class="version-label">当前版本</div>
+            <div class="version-number">{{ currentVersion }}</div>
+          </div>
+        </div>
+        <a-button type="primary" :loading="checking" @click="checkUpdate">
+          <ReloadOutlined /> 检查更新
+        </a-button>
+      </div>
+    </div>
 
-        <!-- 最新版本信息 -->
-        <template v-if="updateInfo">
-          <a-alert
-            v-if="updateInfo.error"
-            :message="updateInfo.error"
-            type="warning"
-            show-icon
-            style="margin-bottom: 16px"
-          />
-          <template v-else>
-            <!-- 有新版本 -->
-            <a-card
-              v-if="updateInfo.has_update"
-              size="small"
-              style="margin-bottom: 16px; border-color: #52c41a"
-            >
-              <template #title>
-                <span style="color: #52c41a">发现新版本: {{ updateInfo.latest_version }}</span>
-              </template>
-              <template #extra>
-                <a-button
-                  type="primary"
-                  danger
-                  :loading="updating"
-                  :disabled="updating"
-                  @click="executeUpdate"
-                >
-                  {{ updating ? '升级中...' : '立即升级' }}
-                </a-button>
-              </template>
-              <div v-if="updateInfo.published_at" style="font-size: 12px; color: #999; margin-bottom: 8px">
-                发布于 {{ formatDate(updateInfo.published_at) }}
-              </div>
-              <div
-                v-if="updateInfo.changelog"
-                style="font-size: 13px; color: #555; white-space: pre-wrap; max-height: 300px; overflow-y: auto"
-              >{{ updateInfo.changelog }}</div>
-              <div v-else style="font-size: 13px; color: #999">暂无更新日志</div>
-            </a-card>
-            <!-- 已是最新 -->
-            <a-card v-else size="small" style="margin-bottom: 16px">
-              <template #title>
-                <span style="color: #1677ff">最新版本: {{ updateInfo.latest_version }}</span>
-                <a-tag color="green" style="margin-left: 8px">当前已是最新</a-tag>
-              </template>
-              <div v-if="updateInfo.published_at" style="font-size: 12px; color: #999; margin-bottom: 8px">
-                发布于 {{ formatDate(updateInfo.published_at) }}
-              </div>
-              <div
-                v-if="updateInfo.changelog"
-                style="font-size: 13px; color: #555; white-space: pre-wrap; max-height: 300px; overflow-y: auto"
-              >{{ updateInfo.changelog }}</div>
-              <div v-else style="font-size: 13px; color: #999">暂无更新日志</div>
-            </a-card>
+    <!-- 错误提示 -->
+    <a-alert
+      v-if="updateInfo?.error"
+      :message="updateInfo.error"
+      type="warning"
+      show-icon
+      style="margin-bottom: 16px"
+    />
+
+    <!-- 有新版本 -->
+    <div v-if="updateInfo && updateInfo.has_update" class="admin-card update-available-card">
+      <div class="update-header">
+        <div class="update-title">
+          <span class="new-version-badge">新版本</span>
+          <span class="new-version-num">v{{ updateInfo.latest_version }}</span>
+        </div>
+        <a-button type="primary" danger :loading="updating" :disabled="updating" @click="executeUpdate">
+          {{ updating ? '升级中...' : '立即升级' }}
+        </a-button>
+      </div>
+      <div v-if="updateInfo.published_at" class="update-meta">发布于 {{ formatDate(updateInfo.published_at) }}</div>
+      <div v-if="updateInfo.changelog" class="changelog">{{ updateInfo.changelog }}</div>
+      <div v-else class="no-changelog">暂无更新日志</div>
+    </div>
+
+    <!-- 已是最新 -->
+    <div v-if="updateInfo && !updateInfo.has_update && !updateInfo.error" class="admin-card latest-card">
+      <div class="latest-content">
+        <CheckCircleOutlined class="latest-icon" />
+        <span class="latest-text">已是最新版本 v{{ updateInfo.latest_version }}</span>
+      </div>
+    </div>
+
+    <!-- 升级进度 -->
+    <div v-if="updating" class="admin-card upgrading-card">
+      <a-spin tip="正在升级，请勿关闭页面..." :spinning="true">
+        <div class="upgrading-hint">升级过程中站点将自动进入维护模式，升级完成后恢复</div>
+      </a-spin>
+    </div>
+
+    <!-- 升级结果 -->
+    <a-alert
+      v-if="updateResult"
+      :message="updateResult.message"
+      :type="updateResult.success ? 'success' : 'error'"
+      show-icon
+      closable
+      style="margin-bottom: 16px"
+    />
+
+    <!-- 升级历史 -->
+    <div class="admin-card history-card">
+      <div class="history-title"><HistoryOutlined style="color: var(--admin-primary)" /> 升级历史</div>
+      <a-table
+        :data-source="updateLogs"
+        :columns="logColumns"
+        :pagination="false"
+        :loading="logsLoading"
+        row-key="id"
+        size="middle"
+        :expanded-row-keys="expandedKeys"
+        @expand="onExpand"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'status'">
+            <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+          </template>
+          <template v-if="column.key === 'version'">
+            {{ record.from_version }} → {{ record.to_version }}
+          </template>
+          <template v-if="column.key === 'created_at'">
+            <span class="time-cell">{{ formatDate(record.created_at) }}</span>
           </template>
         </template>
-
-        <!-- 升级进度 -->
-        <a-card v-if="updating" size="small" style="margin-bottom: 16px">
-          <a-spin tip="正在升级，请勿关闭页面..." :spinning="true">
-            <div style="padding: 20px 0; text-align: center; color: #999">
-              升级过程中站点将自动进入维护模式，升级完成后恢复
-            </div>
-          </a-spin>
-        </a-card>
-
-        <!-- 升级结果 -->
-        <a-alert
-          v-if="updateResult"
-          :message="updateResult.message"
-          :type="updateResult.success ? 'success' : 'error'"
-          show-icon
-          closable
-          style="margin-bottom: 16px"
-        />
-
-        <!-- 升级历史 -->
-        <h3 style="font-size: 15px; margin-bottom: 12px; color: #333">升级历史</h3>
-        <a-table
-          :data-source="updateLogs"
-          :columns="logColumns"
-          :pagination="false"
-          :loading="logsLoading"
-          row-key="id"
-          size="small"
-          :expanded-row-keys="expandedKeys"
-          @expand="onExpand"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-            </template>
-            <template v-if="column.key === 'version'">
-              {{ record.from_version }} → {{ record.to_version }}
-            </template>
-            <template v-if="column.key === 'created_at'">
-              {{ formatDate(record.created_at) }}
-            </template>
-          </template>
-          <template #expandedRowRender="{ record }">
-            <pre style="margin: 0; padding: 12px; background: #fafafa; border-radius: 6px; font-size: 12px; color: #555; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto">{{ record.log || '无详细日志' }}</pre>
-          </template>
-        </a-table>
-      </div>
-    </a-card>
+        <template #expandedRowRender="{ record }">
+          <pre class="log-detail">{{ record.log || '无详细日志' }}</pre>
+        </template>
+      </a-table>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import { message } from 'antdv-next';
+import {
+  CloudUploadOutlined, ReloadOutlined, CheckCircleOutlined, HistoryOutlined,
+} from '@ant-design/icons-vue';
 import request from '../utils/request';
 
 const checking = ref(false);
@@ -154,9 +130,7 @@ async function loadVersion() {
   try {
     const { data } = await request.get('/admin/api/system/info');
     currentVersion.value = data.app?.version || '-';
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 async function loadLogs() {
@@ -164,9 +138,7 @@ async function loadLogs() {
   try {
     const { data } = await request.get('/admin/api/system/update-logs');
     updateLogs.value = data;
-  } catch {
-    // ignore
-  } finally {
+  } catch { /* ignore */ } finally {
     logsLoading.value = false;
   }
 }
@@ -221,3 +193,153 @@ function onExpand(expanded, record) {
   expandedKeys.value = expanded ? [record.id] : [];
 }
 </script>
+
+<style scoped>
+.version-card {
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.version-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.version-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.version-label {
+  font-size: 13px;
+  color: var(--admin-muted-foreground);
+}
+.version-number {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--admin-primary);
+}
+
+.update-available-card {
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--admin-success);
+}
+.update-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.update-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.new-version-badge {
+  background: var(--admin-success);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+.new-version-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--admin-card-foreground);
+}
+.update-meta {
+  font-size: 12px;
+  color: var(--admin-muted-foreground);
+  margin-bottom: 12px;
+}
+.changelog {
+  font-size: 13px;
+  color: var(--admin-card-foreground);
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+.no-changelog {
+  font-size: 13px;
+  color: var(--admin-muted-foreground);
+}
+
+.latest-card {
+  padding: 32px 24px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.latest-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.latest-icon {
+  font-size: 24px;
+  color: var(--admin-success);
+}
+.latest-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-card-foreground);
+}
+
+.upgrading-card {
+  padding: 24px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.upgrading-hint {
+  padding: 20px 0;
+  color: var(--admin-muted-foreground);
+  font-size: 14px;
+}
+
+.history-card {
+  overflow: hidden;
+}
+.history-title {
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-card-foreground);
+  border-bottom: 1px solid var(--admin-border-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-cell {
+  color: var(--admin-muted-foreground);
+  font-size: 13px;
+}
+
+.log-detail {
+  margin: 0;
+  padding: 12px;
+  background: var(--admin-muted);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--admin-muted-foreground);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+:deep(.ant-table-thead > tr > th) {
+  background: transparent;
+  font-weight: 600;
+  color: var(--admin-muted-foreground);
+  border-bottom: 1px solid var(--admin-border-light);
+}
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--admin-border-light);
+}
+:deep(.ant-table-tbody > tr:hover > td) {
+  background: var(--admin-muted) !important;
+}
+</style>

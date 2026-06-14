@@ -1,7 +1,8 @@
 <template>
   <div>
-    <a-card title="系统设置" :bordered="false" :loading="loading">
-      <a-tabs v-model:activeKey="activeTab">
+    <div class="admin-card settings-card">
+      <div class="settings-title"><SettingOutlined style="color: var(--admin-primary)" /> 系统设置</div>
+      <a-tabs v-model:activeKey="activeTab" class="settings-tabs">
         <!-- 基础信息 -->
         <a-tab-pane key="basic" tab="基础信息">
           <a-form :model="form" layout="vertical" style="margin-top: 16px">
@@ -119,7 +120,7 @@
               <div style="color: #999; font-size: 12px; margin-top: 4px">公告将显示在前台首页顶部，支持 HTML 标签</div>
             </a-form-item>
             <a-form-item label="公告预览" v-if="form.announcement">
-              <div style="background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 12px 16px; color: #d48806">
+              <div class="announcement-preview">
                 <span v-html="sanitizedAnnouncement"></span>
               </div>
             </a-form-item>
@@ -144,16 +145,20 @@
                   </div>
                 </template>
                 <template v-if="column.key === 'url'">
-                  <a :href="record.url" target="_blank" rel="noopener" style="color: #1677ff; max-width: 260px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ record.url }}</a>
+                  <a :href="record.url" target="_blank" rel="noopener" class="link-url">{{ record.url }}</a>
                 </template>
                 <template v-if="column.key === 'is_active'">
                   <a-tag :color="record.is_active ? 'green' : 'default'">{{ record.is_active ? '显示' : '隐藏' }}</a-tag>
                 </template>
                 <template v-if="column.key === 'actions'">
                   <a-space>
-                    <a @click="openLinkModal(record)">编辑</a>
+                    <a-tooltip title="编辑">
+                      <a-button type="text" size="small" @click="openLinkModal(record)"><EditOutlined /></a-button>
+                    </a-tooltip>
                     <a-popconfirm title="确认删除？" @confirm="deleteLink(record.id)">
-                      <a style="color: #ff4d4f">删除</a>
+                      <a-tooltip title="删除">
+                        <a-button type="text" danger size="small"><DeleteOutlined /></a-button>
+                      </a-tooltip>
                     </a-popconfirm>
                   </a-space>
                 </template>
@@ -321,10 +326,10 @@
 
       </a-tabs>
 
-      <div v-if="activeTab !== 'links'" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; text-align: right">
+      <div v-if="activeTab !== 'links'" class="settings-save-bar">
         <a-button type="primary" @click="handleSave" :loading="saving">保存设置</a-button>
       </div>
-    </a-card>
+    </div>
 
     <!-- Friend Link Modal -->
     <a-modal v-model:open="linkModalVisible" :title="editingLink ? '编辑友链' : '添加友链'" @ok="saveLink" :confirm-loading="linkSaving" width="480px">
@@ -352,7 +357,7 @@
 <script setup>
 import { reactive, ref, computed, watch, onMounted } from 'vue';
 import { message } from 'antdv-next';
-import { PlusOutlined } from '@ant-design/icons-vue';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons-vue';
 import request from '../utils/request';
 import { sanitizeHtml } from '../../composables/useSanitize';
 
@@ -617,3 +622,57 @@ function openUrl(path) {
   window.open(path, '_blank');
 }
 </script>
+
+<style scoped>
+.settings-card {
+  overflow: hidden;
+}
+
+.settings-title {
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-card-foreground);
+  border-bottom: 1px solid var(--admin-border-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-tabs {
+  padding: 0 24px;
+}
+
+.settings-save-bar {
+  margin-top: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--admin-border-light);
+  text-align: right;
+}
+
+.announcement-preview {
+  background: var(--admin-secondary);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  padding: 12px 16px;
+  color: var(--admin-secondary-foreground);
+}
+
+.link-url {
+  color: var(--admin-primary);
+  max-width: 260px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.ant-table-thead > tr > th) {
+  background: transparent;
+  font-weight: 600;
+  color: var(--admin-muted-foreground);
+}
+:deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid var(--admin-border-light);
+}
+</style>

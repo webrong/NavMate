@@ -1,112 +1,145 @@
 <template>
   <div :class="{ 'dashboard-fullscreen': isFullscreen }">
     <!-- Toolbar -->
-    <div class="page-toolbar">
-      <h2 v-if="isFullscreen" class="fullscreen-title">数据统计大屏</h2>
-      <div v-else></div>
-      <a-space>
+    <PageToolbar v-if="!isFullscreen">
+      <template #left>
         <a-range-picker v-model:value="dateRange" :presets="presetRanges" format="YYYY-MM-DD" @change="fetchAll" style="width: 260px" />
-        <a-button @click="toggleFullscreen">
-          {{ isFullscreen ? '退出大屏' : '全屏模式' }}
-        </a-button>
-      </a-space>
+      </template>
+      <template #right>
+        <a-button @click="toggleFullscreen">全屏模式</a-button>
+      </template>
+    </PageToolbar>
+    <div v-else class="fullscreen-header">
+      <h2 class="fullscreen-title">数据统计大屏</h2>
+      <a-button @click="toggleFullscreen">退出大屏</a-button>
     </div>
 
     <!-- Summary cards -->
-    <a-row :gutter="16" style="margin-bottom: 16px">
-      <a-col :span="6">
-        <a-card :bordered="false" class="stat-card">
-          <a-statistic title="今日点击" :value="summary.today_clicks" :value-style="statStyle">
-            <template #prefix><ThunderboltOutlined /></template>
-          </a-statistic>
-          <div class="stat-sub" v-if="summary.today_clicks > 0">
-            <span class="live-dot"></span> 实时更新中
+    <a-row :gutter="[16, 16]" style="margin-bottom: 16px">
+      <a-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card admin-card admin-card-hover">
+          <div class="stat-card-body">
+            <div class="icon-chip icon-chip--primary"><ThunderboltOutlined /></div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.today_clicks }}</div>
+              <div class="stat-label">今日点击</div>
+              <div v-if="summary.today_clicks > 0" class="stat-sub-text"><span class="live-dot"></span> 实时更新中</div>
+            </div>
           </div>
-        </a-card>
+        </div>
       </a-col>
-      <a-col :span="6">
-        <a-card :bordered="false" class="stat-card">
-          <a-statistic title="总点击量" :value="summary.total_clicks" :value-style="statStyle" />
-          <div class="stat-growth" :class="{ positive: summary.click_growth > 0, negative: summary.click_growth < 0 }">
-            <span v-if="summary.click_growth > 0">↑</span>
-            <span v-else-if="summary.click_growth < 0">↓</span>
-            {{ Math.abs(summary.click_growth) }}% 环比
+      <a-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card admin-card admin-card-hover">
+          <div class="stat-card-body">
+            <div class="icon-chip icon-chip--danger"><BarChartOutlined /></div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.total_clicks }}</div>
+              <div class="stat-label">总点击量</div>
+              <div class="stat-growth" :class="{ positive: summary.click_growth > 0, negative: summary.click_growth < 0 }">
+                <template v-if="summary.click_growth > 0">↑</template>
+                <template v-else-if="summary.click_growth < 0">↓</template>
+                {{ Math.abs(summary.click_growth) }}% 环比
+              </div>
+            </div>
           </div>
-        </a-card>
+        </div>
       </a-col>
-      <a-col :span="6">
-        <a-card :bordered="false" class="stat-card">
-          <a-statistic title="独立访客" :value="summary.unique_visitors" :value-style="{ ...statStyle, color: '#52c41a' }" />
-        </a-card>
+      <a-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card admin-card admin-card-hover">
+          <div class="stat-card-body">
+            <div class="icon-chip icon-chip--success"><TeamOutlined /></div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.unique_visitors }}</div>
+              <div class="stat-label">独立访客</div>
+            </div>
+          </div>
+        </div>
       </a-col>
-      <a-col :span="6">
-        <a-card :bordered="false" class="stat-card">
-          <a-statistic title="日均点击" :value="summary.avg_daily_clicks" :precision="1" :value-style="{ ...statStyle, color: '#faad14' }" />
-        </a-card>
+      <a-col :xs="24" :sm="12" :lg="6">
+        <div class="stat-card admin-card admin-card-hover">
+          <div class="stat-card-body">
+            <div class="icon-chip icon-chip--warning"><RiseOutlined /></div>
+            <div class="stat-info">
+              <div class="stat-value">{{ summary.avg_daily_clicks?.toFixed(1) }}</div>
+              <div class="stat-label">日均点击</div>
+            </div>
+          </div>
+        </div>
       </a-col>
     </a-row>
 
     <a-row :gutter="16" style="margin-bottom: 16px">
       <!-- Trends Chart -->
       <a-col :span="12">
-        <a-card title="点击趋势" :bordered="false">
-          <TrendChart v-if="trends.length" :data="trends" />
-          <a-empty v-else description="数据积累中，暂无趋势数据" />
-        </a-card>
+        <div class="admin-card chart-card">
+          <div class="chart-card-title"><LineChartOutlined style="color: var(--admin-primary)" /> 点击趋势</div>
+          <div class="chart-card-body">
+            <TrendChart v-if="trends.length" :data="trends" />
+            <a-empty v-else description="数据积累中，暂无趋势数据" />
+          </div>
+        </div>
       </a-col>
 
       <!-- Hourly Distribution -->
       <a-col :span="12">
-        <a-card title="时段分布" :bordered="false">
-          <HourlyChart v-if="hasHourlyData" :data="hourlyData" />
-          <a-empty v-else description="数据积累中，暂无时段数据" />
-        </a-card>
+        <div class="admin-card chart-card">
+          <div class="chart-card-title"><ClockCircleOutlined style="color: var(--admin-primary)" /> 时段分布</div>
+          <div class="chart-card-body">
+            <HourlyChart v-if="hasHourlyData" :data="hourlyData" />
+            <a-empty v-else description="数据积累中，暂无时段数据" />
+          </div>
+        </div>
       </a-col>
     </a-row>
 
     <a-row :gutter="16" style="margin-bottom: 16px">
       <!-- Top Categories -->
       <a-col :span="8">
-        <a-card title="热门分类" :bordered="false">
-          <CategoryChart v-if="topCategories.length" :data="topCategories" />
-          <a-empty v-else description="数据积累中" />
-        </a-card>
+        <div class="admin-card chart-card">
+          <div class="chart-card-title"><AppstoreOutlined style="color: var(--admin-primary)" /> 热门分类</div>
+          <div class="chart-card-body">
+            <CategoryChart v-if="topCategories.length" :data="topCategories" />
+            <a-empty v-else description="数据积累中" />
+          </div>
+        </div>
       </a-col>
 
       <!-- Top Sites -->
       <a-col :span="16">
-        <a-card title="热门站点" :bordered="false">
+        <div class="admin-card chart-card">
+          <div class="chart-card-title"><FireOutlined style="color: var(--admin-primary)" /> 热门站点</div>
           <a-table v-if="topSites.length" :dataSource="topSites" :columns="topColumns" :pagination="false" size="small" row-key="site_id">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'site'">
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <img v-if="record.site?.favicon_url" :src="record.site.favicon_url" style="width: 16px; height: 16px; border-radius: 2px" />
+                <div class="site-cell">
+                  <img v-if="record.site?.favicon_url" :src="record.site.favicon_url" class="site-favicon" />
                   <div>
-                    <div style="font-weight: 500">{{ record.site?.title || '-' }}</div>
-                    <div style="font-size: 11px; color: #999">{{ record.site?.url || '' }}</div>
+                    <div class="site-title">{{ record.site?.title || '-' }}</div>
+                    <div class="site-url">{{ record.site?.url || '' }}</div>
                   </div>
                 </div>
               </template>
               <template v-if="column.key === 'clicks'">
-                <div style="display: flex; align-items: center; gap: 8px">
+                <div class="clicks-cell">
                   <div class="clicks-bar-bg">
                     <div class="clicks-bar" :style="{ width: getClicksPercent(record.clicks) + '%' }"></div>
                   </div>
-                  <span style="font-weight: 500; min-width: 40px">{{ record.clicks }}</span>
+                  <span class="clicks-num">{{ record.clicks }}</span>
                 </div>
               </template>
             </template>
           </a-table>
           <a-empty v-else description="数据积累中" />
-        </a-card>
+        </div>
       </a-col>
     </a-row>
 
     <!-- Recent Clicks -->
-    <a-card title="最近点击" :bordered="false">
-      <template #extra>
-        <a-button size="small" @click="fetchRecentClicks">刷新</a-button>
-      </template>
+    <div class="admin-card chart-card">
+      <div class="chart-card-title">
+        <HistoryOutlined style="color: var(--admin-primary)" /> 最近点击
+        <a-button size="small" style="margin-left: auto" @click="fetchRecentClicks">刷新</a-button>
+      </div>
       <a-table v-if="recentClicks.length" :dataSource="recentClicks" :columns="recentColumns" :pagination="false" size="small" row-key="id">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'site_title'">
@@ -114,22 +147,27 @@
             <span v-else>{{ record.site_title }}</span>
           </template>
           <template v-if="column.key === 'ip_address'">
-            <span style="font-family: monospace; font-size: 12px">{{ record.ip_address }}</span>
+            <span class="ip-cell">{{ record.ip_address }}</span>
           </template>
           <template v-if="column.key === 'clicked_at'">
-            <span style="color: #666; font-size: 12px">{{ formatTime(record.clicked_at) }}</span>
+            <span class="time-cell">{{ formatTime(record.clicked_at) }}</span>
           </template>
         </template>
       </a-table>
       <a-empty v-else description="暂无点击记录" />
-    </a-card>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { ThunderboltOutlined } from '@ant-design/icons-vue';
+import {
+  ThunderboltOutlined, BarChartOutlined, TeamOutlined, RiseOutlined,
+  LineChartOutlined, ClockCircleOutlined, AppstoreOutlined, FireOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons-vue';
 import request from '../utils/request';
+import PageToolbar from '../components/PageToolbar.vue';
 import TrendChart from '../components/charts/TrendChart.vue';
 import HourlyChart from '../components/charts/HourlyChart.vue';
 import CategoryChart from '../components/charts/CategoryChart.vue';
@@ -144,11 +182,6 @@ const recentClicks = ref([]);
 const summary = reactive({ total_clicks: 0, unique_visitors: 0, avg_daily_clicks: 0, today_clicks: 0, click_growth: 0 });
 const loading = ref(false);
 let refreshTimer = null;
-
-const statStyle = computed(() => isFullscreen.value
-  ? { color: '#00d4ff', fontSize: '32px' }
-  : { color: '#1677ff', fontSize: '28px' }
-);
 
 const presetRanges = [
   { label: '最近 7 天', value: [(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })(), new Date()] },
@@ -287,337 +320,103 @@ function formatTime(datetime) {
 </script>
 
 <style scoped>
-/* Fullscreen dashboard */
 .dashboard-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
   background: #0a1628;
-  min-height: 100vh;
-  padding: 20px;
-  color: #e0e0e0;
+  padding: 24px;
+  overflow-y: auto;
 }
-
-.dashboard-fullscreen :deep(.ant-card) {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+.dashboard-fullscreen :deep(.admin-card) {
+  background: rgba(15, 35, 60, 0.8) !important;
+  color: #e5e7eb !important;
+  border-color: rgba(0, 212, 255, 0.2) !important;
 }
+.dashboard-fullscreen .stat-value { color: #00d4ff !important; }
+.dashboard-fullscreen .stat-label { color: rgba(255,255,255,0.6) !important; }
+.dashboard-fullscreen .chart-card-title { color: #00d4ff !important; }
 
-.dashboard-fullscreen :deep(.ant-card-head) {
-  color: #fff;
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+.fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
-
-.dashboard-fullscreen :deep(.ant-card-head-title) {
-  color: #fff;
-}
-
-.dashboard-fullscreen :deep(.ant-statistic-title) {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.dashboard-fullscreen :deep(.ant-table) {
-  background: transparent;
-  color: #e0e0e0;
-}
-
-.dashboard-fullscreen :deep(.ant-table-thead > tr > th) {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.7);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-.dashboard-fullscreen :deep(.ant-table-tbody > tr > td) {
-  border-bottom-color: rgba(255, 255, 255, 0.06);
-  color: #ccc;
-}
-
-.dashboard-fullscreen :deep(.ant-table-tbody > tr:hover > td) {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.dashboard-fullscreen :deep(.ant-empty-description) {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.dashboard-fullscreen :deep(.ant-btn) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #ccc;
-}
-
 .fullscreen-title {
-  color: #fff;
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 700;
   margin: 0;
 }
 
-/* Toolbar */
-.page-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Stat cards */
+.stat-card { padding: 20px; }
+.stat-card-body { display: flex; align-items: center; gap: 16px; }
+.stat-info { flex: 1; min-width: 0; }
+.stat-value {
+  font-size: 28px; font-weight: 700; line-height: 1.2;
+  color: var(--admin-card-foreground);
+}
+.stat-label {
+  font-size: 13px; color: var(--admin-muted-foreground); margin-top: 4px;
+}
+.stat-sub-text {
+  font-size: 12px; color: var(--admin-success); margin-top: 6px;
+  display: flex; align-items: center; gap: 4px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--admin-success); animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.stat-growth {
+  font-size: 12px; font-weight: 500; margin-top: 6px;
+}
+.stat-growth.positive { color: var(--admin-success); }
+.stat-growth.negative { color: var(--admin-destructive); }
+
+/* Chart cards */
+.chart-card {
+  padding: 0;
+  overflow: hidden;
   margin-bottom: 16px;
 }
-
-/* Stat cards */
-.stat-card {
-  text-align: center;
+.chart-card-title {
+  padding: 16px 20px;
+  font-size: 16px; font-weight: 600;
+  color: var(--admin-card-foreground);
+  border-bottom: 1px solid var(--admin-border-light);
+  display: flex; align-items: center; gap: 8px;
 }
+.chart-card-body { padding: 16px 20px; }
 
-.stat-sub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #52c41a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-
-.live-dot {
-  width: 6px;
-  height: 6px;
-  background: #52c41a;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.stat-growth {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #999;
-}
-
-.stat-growth.positive { color: #52c41a; }
-.stat-growth.negative { color: #ff4d4f; }
-
-/* Trend chart */
-.trend-chart {
-  display: flex;
-  gap: 8px;
-  padding: 8px 0;
-}
-
-.trend-y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  font-size: 10px;
-  color: #999;
-  padding: 0 4px 24px 0;
-  min-width: 40px;
-  height: 204px;
-}
-
-.trend-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  flex: 1;
-  overflow-x: auto;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.trend-bar-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 24px;
-  flex: 1;
-  position: relative;
-}
-
-.trend-bar {
-  width: 100%;
-  min-height: 2px;
-  border-radius: 3px 3px 0 0;
-  background: linear-gradient(180deg, #4096ff 0%, #1677ff 100%);
-  transition: height 0.3s ease;
-  cursor: pointer;
-}
-
-.trend-bar:hover {
-  background: linear-gradient(180deg, #69b1ff 0%, #4096ff 100%);
-}
-
-.trend-bar-group:hover .trend-tooltip {
-  display: block;
-}
-
-.trend-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  text-align: center;
-  white-space: nowrap;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.trend-label {
-  font-size: 10px;
-  color: #999;
-  margin-top: 4px;
-  white-space: nowrap;
-}
-
-/* Hourly chart */
-.hourly-chart {
-  padding: 8px 0;
-}
-
-.hourly-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  height: 190px;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 0;
-}
-
-.hourly-bar-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  min-width: 0;
-}
-
-.hourly-bar {
-  width: 100%;
-  min-height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: linear-gradient(180deg, #36cfc9 0%, #13a8a8 100%);
-  transition: height 0.3s ease;
-  cursor: pointer;
-}
-
-.hourly-bar:hover {
-  background: linear-gradient(180deg, #5cdbd3 0%, #36cfc9 100%);
-}
-
-.hourly-bar-group:hover .hourly-tooltip {
-  display: block;
-}
-
-.hourly-tooltip {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  text-align: center;
-  white-space: nowrap;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.hourly-label {
-  font-size: 10px;
-  color: #999;
-  margin-top: 4px;
-}
-
-/* Fullscreen hourly bar color */
-.dashboard-fullscreen .hourly-bar {
-  background: linear-gradient(180deg, #00d4ff 0%, #0098db 100%);
-}
-
-.dashboard-fullscreen .hourly-bar:hover {
-  background: linear-gradient(180deg, #36e8ff 0%, #00d4ff 100%);
-}
-
-.dashboard-fullscreen .trend-bar {
-  background: linear-gradient(180deg, #00d4ff 0%, #0070cc 100%);
-}
-
-.dashboard-fullscreen .trend-bar:hover {
-  background: linear-gradient(180deg, #36e8ff 0%, #00d4ff 100%);
-}
-
-/* Category ranking */
-.category-item {
-  margin-bottom: 14px;
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-  font-size: 13px;
-}
-
-.category-rank {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  background: #f0f0f0;
-  font-size: 11px;
-  font-weight: 600;
-  color: #666;
-  margin-right: 6px;
-}
-
-.category-item:nth-child(1) .category-rank { background: #fff7e6; color: #d48806; }
-.category-item:nth-child(2) .category-rank { background: #f0f5ff; color: #1677ff; }
-.category-item:nth-child(3) .category-rank { background: #f6ffed; color: #52c41a; }
-
-.category-name { flex: 1; }
-.category-count { font-weight: 600; color: #1677ff; }
-
-.category-bar-bg {
-  height: 6px;
-  background: #f5f5f5;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.category-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #1677ff, #69b1ff);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.dashboard-fullscreen .category-count { color: #00d4ff; }
-.dashboard-fullscreen .category-bar { background: linear-gradient(90deg, #00d4ff, #36e8ff); }
+/* Site cell in top sites table */
+.site-cell { display: flex; align-items: center; gap: 8px; }
+.site-favicon { width: 16px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+.site-title { font-weight: 500; font-size: 13px; }
+.site-url { font-size: 11px; color: var(--admin-muted-foreground); }
 
 /* Clicks bar */
+.clicks-cell { display: flex; align-items: center; gap: 8px; }
 .clicks-bar-bg {
-  width: 100px;
-  height: 6px;
-  background: #f5f5f5;
-  border-radius: 3px;
-  overflow: hidden;
+  flex: 1; height: 8px; background: var(--admin-muted);
+  border-radius: 4px; overflow: hidden;
 }
-
 .clicks-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #1677ff, #69b1ff);
-  border-radius: 3px;
-  transition: width 0.3s ease;
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(252,124,60,0.6), var(--admin-primary));
 }
+.clicks-num { font-weight: 600; min-width: 40px; color: var(--admin-primary); }
 
-.dashboard-fullscreen .clicks-bar { background: linear-gradient(90deg, #00d4ff, #36e8ff); }
+/* Table cells */
+.ip-cell { font-family: monospace; font-size: 12px; }
+.time-cell { color: var(--admin-muted-foreground); font-size: 12px; }
+
+:deep(.ant-table-thead > tr > th) {
+  background: transparent; font-weight: 600;
+  color: var(--admin-muted-foreground);
+  border-bottom: 1px solid var(--admin-border-light);
+}
+:deep(.ant-table-tbody > tr > td) { border-bottom: 1px solid var(--admin-border-light); }
+:deep(.ant-table-tbody > tr:hover > td) { background: var(--admin-muted) !important; }
 </style>
