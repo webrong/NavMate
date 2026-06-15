@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | The source-of-truth version is the `storage/app/installed` marker file
+    | (written by the updater after each successful upgrade). This constant is
+    | the fallback used on a fresh install before the marker is created, and is
+    | bumped in lockstep with the git tag on every release.
+    |
+    */
+
+    'version' => '1.2.0',
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

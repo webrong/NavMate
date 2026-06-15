@@ -25,11 +25,22 @@ class DashboardController extends Controller
         });
 
         $recentSites = Cache::remember('dashboard:recent', 120, function () {
-            return Site::with('category:id,name')->latest()->take(10)->get();
+            // Convert to a plain array so the cache serializer (file/database)
+            // doesn't choke on Eloquent Collection, which otherwise becomes
+            // __PHP_Incomplete_Class on read-back and breaks the JSON response.
+            return Site::with('category:id,name')
+                ->latest()->take(10)->get()
+                ->map(fn ($s) => $s->only(['id', 'title', 'url', 'favicon_url', 'clicks', 'created_at']) + [
+                    'category_name' => $s->category?->name,
+                ])->all();
         });
 
         $topSites = Cache::remember('dashboard:top', 300, function () {
-            return Site::with('category:id,name')->orderBy('clicks', 'desc')->take(10)->get();
+            return Site::with('category:id,name')
+                ->orderBy('clicks', 'desc')->take(10)->get()
+                ->map(fn ($s) => $s->only(['id', 'title', 'url', 'favicon_url', 'clicks', 'created_at']) + [
+                    'category_name' => $s->category?->name,
+                ])->all();
         });
 
         return response()->json([

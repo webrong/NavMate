@@ -97,37 +97,24 @@
             class="trigger"
             @click="toggleSidebar"
           />
-          <a-breadcrumb class="admin-breadcrumb">
-            <a-breadcrumb-item v-if="currentGroup">{{ currentGroup }}</a-breadcrumb-item>
-            <a-breadcrumb-item>{{ currentTitle }}</a-breadcrumb-item>
-          </a-breadcrumb>
+          <a-breadcrumb class="admin-breadcrumb" :items="breadcrumbItems" />
         </div>
         <div class="header-right">
           <a-tooltip :title="isDark ? '切换到亮色模式' : '切换到深色模式'">
             <component
               :is="isDark ? BulbFilled : BulbOutlined"
               class="header-icon-btn"
-              @click="toggleDark"
+              @click="onToggleDark"
             />
           </a-tooltip>
-          <a-dropdown>
+          <a-dropdown :trigger="['click']" placement="bottomRight" :menu="userMenu">
             <div class="user-info">
               <a-avatar size="small" class="user-avatar">
                 <template #icon><UserOutlined /></template>
               </a-avatar>
               <span class="user-name">{{ authStore.userName }}</span>
+              <DownOutlined class="user-arrow" />
             </div>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item key="home" @click="goHome">
-                  <HomeOutlined /><span style="margin-left: 8px">返回前台</span>
-                </a-menu-item>
-                <a-menu-divider />
-                <a-menu-item key="logout" @click="handleLogout">
-                  <LogoutOutlined /><span style="margin-left: 8px">退出登录</span>
-                </a-menu-item>
-              </a-menu>
-            </template>
           </a-dropdown>
         </div>
       </div>
@@ -144,7 +131,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, h } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useBreakpoints, breakpointsTailwind } from '@vueuse/core';
 import { useAdminAuthStore } from '../stores/adminAuth';
@@ -153,7 +140,7 @@ import {
   DashboardOutlined, AppstoreOutlined, GlobalOutlined, TeamOutlined,
   BarChartOutlined, ImportOutlined, PictureOutlined, SettingOutlined,
   MonitorOutlined, CloudUploadOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
-  UserOutlined, LogoutOutlined, HomeOutlined, BulbOutlined, BulbFilled,
+  UserOutlined, LogoutOutlined, HomeOutlined, BulbOutlined, BulbFilled, DownOutlined,
 } from '@ant-design/icons-vue';
 
 const router = useRouter();
@@ -168,6 +155,21 @@ const collapsed = ref(false);
 const drawerOpen = ref(false);
 const selectedKeys = ref([route.path]);
 
+// antdv-next (antd 5.x API): Dropdown renders its overlay from the `menu`
+// prop's `items` array, not from an #overlay slot. Each item needs a key;
+// onClick receives the clicked MenuInfo and we dispatch on key.
+const userMenu = {
+  items: [
+    { key: 'home', icon: h(HomeOutlined), label: '返回前台' },
+    { type: 'divider' },
+    { key: 'logout', icon: h(LogoutOutlined), label: '退出登录', danger: true },
+  ],
+  onClick: ({ key }) => {
+    if (key === 'home') goHome();
+    else if (key === 'logout') handleLogout();
+  },
+};
+
 const groupMap = {
   '/admin/dashboard': '概览',
   '/admin/categories': '内容管理', '/admin/sites': '内容管理',
@@ -179,6 +181,12 @@ const groupMap = {
 
 const currentTitle = computed(() => route.meta?.title || '仪表盘');
 const currentGroup = computed(() => groupMap[route.path] || '');
+const breadcrumbItems = computed(() => {
+  const items = [];
+  if (currentGroup.value) items.push({ title: currentGroup.value });
+  items.push({ title: currentTitle.value });
+  return items;
+});
 
 watch(() => route.path, (path) => { selectedKeys.value = [path]; });
 
@@ -197,6 +205,14 @@ function onMobileMenuClick({ key }) {
 }
 
 function goHome() { window.open('/', '_blank'); }
+
+// useToggle flips only when called with no arguments. The template binds
+// @click="toggleDark" which forwards the MouseEvent as an argument, so
+// vueuse would force isDark = truthy(MouseEvent) every time — dark mode
+// could be turned ON but never back OFF. Wrap it so the event is dropped.
+function onToggleDark() {
+  toggleDark();
+}
 
 async function handleLogout() {
   await authStore.logout();
@@ -224,26 +240,45 @@ async function handleLogout() {
   background: linear-gradient(135deg, #fc7c3c, #e33636);
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 18px; flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(252, 124, 60, 0.3);
+  box-shadow: 0 4px 12px rgba(252, 124, 60, 0.35);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.logo-text { font-size: 18px; font-weight: 700; color: var(--admin-sidebar-foreground); white-space: nowrap; }
+.logo-icon:hover { transform: rotate(-6deg) scale(1.05); }
+.logo-text { font-size: 18px; font-weight: 700; color: var(--admin-sidebar-foreground); white-space: nowrap; letter-spacing: -0.01em; }
 
-.admin-menu-wrapper { flex: 1; overflow-y: auto; padding: 8px 0; }
+.admin-menu-wrapper { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: thin; scrollbar-color: var(--admin-border) transparent; }
+.admin-menu-wrapper::-webkit-scrollbar { width: 4px; }
+.admin-menu-wrapper::-webkit-scrollbar-thumb { background: var(--admin-border); border-radius: 2px; }
 .menu-group { margin-bottom: 4px; }
 .menu-group-label {
-  padding: 12px 24px 4px; font-size: 11px; font-weight: 600;
-  color: var(--admin-muted-foreground); text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 14px 24px 6px; font-size: 11px; font-weight: 600;
+  color: var(--admin-muted-foreground); text-transform: uppercase; letter-spacing: 0.06em;
 }
 
 :deep(.admin-menu) { background: transparent !important; border-inline-end: none !important; }
 :deep(.admin-menu .ant-menu-item) {
   margin: 2px 8px; border-radius: var(--admin-radius-md);
   color: var(--admin-sidebar-foreground); width: calc(100% - 16px);
+  transition: all 0.2s ease;
+  position: relative;
 }
-:deep(.admin-menu .ant-menu-item:hover) { background: var(--admin-muted) !important; }
+:deep(.admin-menu .ant-menu-item::before) {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%) scaleY(0);
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0;
+  background: var(--admin-sidebar-primary);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+:deep(.admin-menu .ant-menu-item:hover) {
+  background: var(--admin-muted) !important;
+  color: var(--admin-sidebar-accent-foreground) !important;
+}
 :deep(.admin-menu .ant-menu-item-selected) {
   background: var(--admin-sidebar-accent) !important;
   color: var(--admin-sidebar-accent-foreground) !important;
+  font-weight: 600;
+}
+:deep(.admin-menu .ant-menu-item-selected::before) {
+  transform: translateY(-50%) scaleY(1);
 }
 :deep(.admin-menu .ant-menu-item-selected::after) { display: none; }
 
@@ -259,27 +294,42 @@ async function handleLogout() {
 .header-left { display: flex; align-items: center; gap: 16px; }
 .trigger {
   font-size: 18px; cursor: pointer; color: var(--admin-foreground);
-  padding: 8px; border-radius: var(--admin-radius-md); transition: all 0.2s;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--admin-radius-md);
+  background: transparent; border: 1px solid transparent;
+  transition: all 0.2s;
 }
-.trigger:hover { background: var(--admin-muted); color: var(--admin-primary); }
+.trigger:hover { background: var(--admin-muted); color: var(--admin-primary); border-color: var(--admin-border-light); }
 .admin-breadcrumb { font-size: 14px; }
 :deep(.admin-breadcrumb a), :deep(.admin-breadcrumb span) { color: var(--admin-muted-foreground) !important; }
 :deep(.admin-breadcrumb li:last-child span) { color: var(--admin-foreground) !important; font-weight: 600; }
 
-.header-right { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
 .header-icon-btn {
   font-size: 18px; cursor: pointer; color: var(--admin-foreground);
-  padding: 8px; border-radius: var(--admin-radius-md); transition: all 0.2s;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--admin-radius-md);
+  background: transparent; border: 1px solid transparent;
+  transition: all 0.2s ease;
 }
-.header-icon-btn:hover { background: var(--admin-muted); color: var(--admin-primary); }
+.header-icon-btn:hover {
+  background: var(--admin-muted); color: var(--admin-primary);
+  border-color: var(--admin-border-light);
+}
 
 .user-info {
   display: flex; align-items: center; gap: 8px; cursor: pointer;
-  padding: 4px 8px; border-radius: var(--admin-radius-md); transition: background 0.2s;
+  padding: 4px 10px 4px 4px; border-radius: 22px;
+  background: var(--admin-muted);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
 }
-.user-info:hover { background: var(--admin-muted); }
-.user-avatar { background: var(--admin-primary) !important; }
-.user-name { font-size: 14px; color: var(--admin-foreground); white-space: nowrap; }
+.user-info:hover { background: var(--admin-card); border-color: var(--admin-border); box-shadow: var(--admin-shadow-xs); }
+.user-avatar { background: linear-gradient(135deg, #fc7c3c, #e33636) !important; }
+.user-name { font-size: 14px; color: var(--admin-foreground); white-space: nowrap; font-weight: 500; }
+.user-arrow { font-size: 12px; color: var(--admin-muted-foreground); }
 
 .admin-content { padding: 24px; min-height: calc(100vh - 64px); }
 

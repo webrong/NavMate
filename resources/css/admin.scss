@@ -61,9 +61,14 @@
   --admin-sidebar-border: #e8e8e8;
 
   --admin-header-bg: rgba(255, 255, 255, 0.85);
-  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --admin-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
-  --admin-shadow-primary: 0 4px 12px rgba(252, 124, 60, 0.25);
+
+  /* Art Design Pro–grade elevation. Cards lift on a soft directional shadow
+     instead of the previous barely-visible 0.04 alpha. */
+  --admin-shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --admin-shadow-card: 0 1px 3px rgba(17, 24, 39, 0.05), 0 4px 12px rgba(17, 24, 39, 0.06);
+  --admin-shadow-hover: 0 6px 16px rgba(17, 24, 39, 0.1), 0 2px 6px rgba(17, 24, 39, 0.06);
+  --admin-shadow-primary: 0 6px 16px rgba(252, 124, 60, 0.32);
+  --admin-shadow-popover: 0 12px 32px rgba(17, 24, 39, 0.12), 0 4px 12px rgba(17, 24, 39, 0.08);
 
   --admin-chart-1: #fc7c3c;
   --admin-chart-2: #52c41a;
@@ -118,9 +123,11 @@
   --admin-sidebar-border: #4b5563;
 
   --admin-header-bg: rgba(55, 65, 81, 0.85);
-  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
-  --admin-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  --admin-shadow-primary: 0 4px 12px rgba(252, 124, 60, 0.3);
+  --admin-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --admin-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+  --admin-shadow-primary: 0 6px 16px rgba(252, 124, 60, 0.4);
+  --admin-shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 /* Global admin resets */
@@ -154,14 +161,16 @@ body {
 /* Generic card wrapper used across all admin views */
 .admin-card {
   background: var(--admin-card);
+  border: 1px solid var(--admin-border-light);
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-shadow-card);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 
 .admin-card-hover:hover {
   box-shadow: var(--admin-shadow-hover);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  border-color: var(--admin-border);
 }
 
 /*
@@ -172,12 +181,87 @@ body {
 #admin-app .ant-card {
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-shadow-card);
-  border-color: var(--admin-border);
+  border: 1px solid var(--admin-border-light);
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+#admin-app .ant-card-hoverable:hover {
+  box-shadow: var(--admin-shadow-hover);
+  transform: translateY(-3px);
 }
 
 /* Card titles should use the foreground token, not a hardcoded grey */
 #admin-app .ant-card-head-title {
   font-weight: 600;
+}
+
+/* Typography: slightly tighter, more confident headings */
+#admin-app h1,
+#admin-app h2,
+#admin-app h3,
+#admin-app h4 {
+  letter-spacing: -0.01em;
+  color: var(--admin-foreground);
+}
+
+/* Tables: remove the heavy 16px bottom padding and use lighter separators */
+#admin-app .ant-table {
+  background: transparent;
+}
+#admin-app .ant-table-thead > tr > th {
+  background: var(--admin-muted) !important;
+  font-weight: 600;
+  color: var(--admin-muted-foreground);
+  font-size: 13px;
+  text-transform: none;
+  border-bottom: 1px solid var(--admin-border-light);
+}
+#admin-app .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--admin-border-light);
+  transition: background 0.18s ease;
+}
+#admin-app .ant-table-tbody > tr:hover > td {
+  background: var(--admin-muted) !important;
+}
+
+/* Dropdowns, popovers, tooltips: give them real elevation */
+#admin-app .ant-dropdown-menu,
+#admin-app .ant-popover-inner,
+#admin-app .ant-select-dropdown {
+  box-shadow: var(--admin-shadow-popover) !important;
+  border: 1px solid var(--admin-border-light);
+}
+
+/* Buttons: more refined primary with hover gradient lift */
+#admin-app .ant-btn-primary {
+  box-shadow: 0 2px 6px rgba(252, 124, 60, 0.25);
+  transition: all 0.2s ease;
+}
+#admin-app .ant-btn-primary:hover:not(:disabled) {
+  box-shadow: var(--admin-shadow-primary);
+  transform: translateY(-1px);
+}
+#admin-app .ant-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Inputs: subtle focus ring in the brand color */
+#admin-app .ant-input:focus,
+#admin-app .ant-input-affix-wrapper-focused,
+#admin-app .ant-picker-focused,
+#admin-app .ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 3px rgba(252, 124, 60, 0.14) !important;
+}
+
+/* Tags: slightly softer corners */
+#admin-app .ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Modal elevation */
+#admin-app .ant-modal-content {
+  box-shadow: var(--admin-shadow-popover);
 }
 
 /* Stat-card icon chip backgrounds (light pastel circles) */

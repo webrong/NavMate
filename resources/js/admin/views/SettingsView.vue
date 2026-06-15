@@ -290,7 +290,12 @@
               </a-col>
               <a-col :span="8">
                 <a-form-item label="授权码 / 密码" required>
-                  <a-input-password v-model:value="form.mail_password" :placeholder="form.mail_password ? '已保存，留空不修改' : '请输入授权码'" />
+                  <a-input-password
+                    v-model:value="form.mail_password"
+                    name="mail-password"
+                    autocomplete="new-password"
+                    :placeholder="form.mail_password ? '已保存，留空不修改' : '请输入授权码'"
+                  />
                 </a-form-item>
               </a-col>
             </a-row>

@@ -161,6 +161,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import dayjs from 'dayjs';
 import {
   ThunderboltOutlined, BarChartOutlined, TeamOutlined, RiseOutlined,
   LineChartOutlined, ClockCircleOutlined, AppstoreOutlined, FireOutlined,
@@ -183,10 +184,13 @@ const summary = reactive({ total_clicks: 0, unique_visitors: 0, avg_daily_clicks
 const loading = ref(false);
 let refreshTimer = null;
 
+// Presets MUST be dayjs objects, not native Date — antdv RangePicker calls
+// .format() / .diff() on hover which crash with "undefined is not a function"
+// (and then infinite-loop the scheduler) when given plain Date instances.
 const presetRanges = [
-  { label: '最近 7 天', value: [(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })(), new Date()] },
-  { label: '最近 30 天', value: [(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })(), new Date()] },
-  { label: '最近 90 天', value: [(() => { const d = new Date(); d.setDate(d.getDate() - 90); return d; })(), new Date()] },
+  { label: '最近 7 天', value: [dayjs().subtract(7, 'day'), dayjs()] },
+  { label: '最近 30 天', value: [dayjs().subtract(30, 'day'), dayjs()] },
+  { label: '最近 90 天', value: [dayjs().subtract(90, 'day'), dayjs()] },
 ];
 
 const topColumns = [
@@ -237,9 +241,12 @@ if (typeof document !== 'undefined') {
 function getParams() {
   const params = {};
   if (dateRange.value && dateRange.value[0] && dateRange.value[1]) {
-    params.start = dateRange.value[0].format('YYYY-MM-DD');
-    params.end = dateRange.value[1].format('YYYY-MM-DD');
-    params.days = dateRange.value[1].diff(dateRange.value[0], 'days') + 1;
+    // Coerce to dayjs in case the picker ever hands us a native Date.
+    const start = dayjs(dateRange.value[0]);
+    const end = dayjs(dateRange.value[1]);
+    params.start = start.format('YYYY-MM-DD');
+    params.end = end.format('YYYY-MM-DD');
+    params.days = end.diff(start, 'days') + 1;
   } else {
     params.days = 30;
   }

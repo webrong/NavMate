@@ -5,12 +5,12 @@
       <a-col :xs="24" :sm="12" :lg="8" v-for="item in statCards" :key="item.label">
         <div class="stat-card admin-card admin-card-hover">
           <div class="stat-card-body">
+            <div class="stat-info">
+              <div class="stat-label">{{ item.label }}</div>
+              <div class="stat-value">{{ formatNum(item.value) }}</div>
+            </div>
             <div :class="['icon-chip', item.chipClass]">
               <component :is="item.icon" />
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ formatNum(item.value) }}</div>
-              <div class="stat-label">{{ item.label }}</div>
             </div>
           </div>
           <div v-if="item.trend !== undefined" class="stat-trend" :class="item.trend >= 0 ? 'trend-up' : 'trend-down'">
@@ -53,7 +53,15 @@
               </template>
               <template v-else-if="column.key === 'title'">
                 <div class="site-cell">
-                  <img v-if="record.favicon_url" :src="record.favicon_url" class="site-favicon" alt="" @error="e => e.target.style.display='none'" />
+                  <img
+                    v-if="record.favicon_url"
+                    :src="record.favicon_url"
+                    class="site-favicon"
+                    alt=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    @error="onFaviconError"
+                  />
                   <span>{{ record.title }}</span>
                 </div>
               </template>
@@ -84,7 +92,15 @@
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'title'">
                 <div class="site-cell">
-                  <img v-if="record.favicon_url" :src="record.favicon_url" class="site-favicon" alt="" @error="e => e.target.style.display='none'" />
+                  <img
+                    v-if="record.favicon_url"
+                    :src="record.favicon_url"
+                    class="site-favicon"
+                    alt=""
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    @error="onFaviconError"
+                  />
                   <span>{{ record.title }}</span>
                 </div>
               </template>
@@ -147,6 +163,22 @@ function formatNum(n) {
   return Number(n).toLocaleString('zh-CN');
 }
 
+// Replace broken favicons with a colored letter tile instead of hiding the
+// <img> entirely. Hiding leaves an empty gap; replacing keeps the table row
+// aligned and avoids a re-render storm when many favicons 404 at once.
+// We swap the <img> for a <span> with the site's first character and clear
+// the original src so the browser never retries it.
+function onFaviconError(e) {
+  const img = e.target;
+  if (!img || !img.parentNode) return;
+  const title = img.getAttribute('alt') || img.dataset.title || '';
+  const letter = (title.trim()[0] || '?').toUpperCase();
+  const span = document.createElement('span');
+  span.className = 'site-favicon site-favicon--fallback';
+  span.textContent = letter;
+  img.parentNode.replaceChild(span, img);
+}
+
 function formatDate(date) {
   if (!date) return '';
   const d = new Date(date);
@@ -165,13 +197,14 @@ function formatDate(date) {
 
 /* ---- Stat cards ---- */
 .stat-card {
-  padding: 20px;
+  padding: 22px 24px;
   cursor: default;
 }
 
 .stat-card-body {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
 }
 
@@ -181,29 +214,42 @@ function formatDate(date) {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--admin-card-foreground);
+  letter-spacing: -0.02em;
+  margin-top: 6px;
 }
 
 .stat-label {
   font-size: 13px;
   color: var(--admin-muted-foreground);
-  margin-top: 4px;
+  font-weight: 500;
 }
 
 .stat-trend {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 12px;
-  font-size: 13px;
-  font-weight: 500;
+  margin-top: 14px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 12px;
 }
-.trend-up { color: var(--admin-success); }
-.trend-down { color: var(--admin-destructive); }
+.trend-up { color: var(--admin-success); background: rgba(82, 196, 26, 0.1); }
+.trend-down { color: var(--admin-destructive); background: rgba(245, 34, 45, 0.1); }
 .trend-hint { color: var(--admin-muted-foreground); font-weight: 400; margin-left: 4px; }
+
+/* Make stat cards' icon chips slightly smaller and rounded-lg */
+.stat-card .icon-chip {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+  border-radius: var(--admin-radius);
+  flex-shrink: 0;
+}
 
 .stat-skeleton {
   padding: 20px;
@@ -220,7 +266,7 @@ function formatDate(date) {
 }
 
 .table-card-header {
-  padding: 16px 24px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--admin-border-light);
   display: flex;
   align-items: center;
@@ -234,6 +280,7 @@ function formatDate(date) {
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: -0.01em;
 }
 
 :deep(.table-card .ant-table) {
@@ -245,6 +292,10 @@ function formatDate(date) {
   font-weight: 600;
   color: var(--admin-muted-foreground);
   border-bottom: 1px solid var(--admin-border-light);
+}
+
+:deep(.table-card .ant-table-tbody > tr:last-child > td) {
+  border-bottom: none;
 }
 
 :deep(.table-card .ant-table-tbody > tr > td) {
@@ -284,6 +335,18 @@ function formatDate(date) {
   height: 16px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+/* Letter tile shown when a favicon 404s — keeps the row aligned instead of
+   leaving a gap. Sits on a soft brand-tinted background. */
+.site-favicon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fc7c3c, #e33636);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .clicks-value {

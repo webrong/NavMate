@@ -11,8 +11,11 @@
 
     <div v-if="info" class="monitor-grid">
       <!-- 应用信息 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><AppstoreOutlined style="color: var(--admin-primary)" /> 应用信息</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--primary"><AppstoreOutlined /></span>
+          应用信息
+        </div>
         <div class="monitor-card-body">
           <div class="info-row"><span class="info-label">应用版本</span><span class="info-value">{{ info.app?.version || '-' }}</span></div>
           <div class="info-row"><span class="info-label">Laravel</span><span class="info-value">{{ info.app?.laravel_version || '-' }}</span></div>
@@ -24,8 +27,11 @@
       </div>
 
       <!-- PHP 信息 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><CodeOutlined style="color: var(--admin-primary)" /> PHP 信息</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--info"><CodeOutlined /></span>
+          PHP 信息
+        </div>
         <div class="monitor-card-body">
           <div class="info-row"><span class="info-label">PHP 版本</span><span class="info-value">{{ info.php?.version || '-' }}</span></div>
           <div class="info-row"><span class="info-label">SAPI</span><span class="info-value">{{ info.php?.sapi || '-' }}</span></div>
@@ -44,8 +50,11 @@
       </div>
 
       <!-- 数据库 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><DatabaseOutlined style="color: var(--admin-primary)" /> 数据库</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--success"><DatabaseOutlined /></span>
+          数据库
+        </div>
         <div class="monitor-card-body">
           <template v-if="info.database && !info.database.error">
             <div class="info-row"><span class="info-label">驱动</span><span class="info-value">{{ info.database.driver }}</span></div>
@@ -67,8 +76,11 @@
       </div>
 
       <!-- 缓存 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><ThunderboltOutlined style="color: var(--admin-primary)" /> 缓存</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--warning"><ThunderboltOutlined /></span>
+          缓存
+        </div>
         <div class="monitor-card-body">
           <div class="info-row"><span class="info-label">驱动</span><span class="info-value">{{ info.cache?.driver || '-' }}</span></div>
           <div class="info-row">
@@ -85,8 +97,11 @@
       </div>
 
       <!-- 磁盘 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><HddOutlined style="color: var(--admin-primary)" /> 磁盘使用</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--cyan"><HddOutlined /></span>
+          磁盘使用
+        </div>
         <div class="monitor-card-body">
           <a-progress :percent="info.storage?.disk_percent || 0" :stroke-color="diskColor" style="margin-bottom: 16px" />
           <div class="info-row"><span class="info-label">总空间</span><span class="info-value">{{ info.storage?.disk_total || '-' }}</span></div>
@@ -97,8 +112,11 @@
       </div>
 
       <!-- 队列 -->
-      <div class="admin-card monitor-card">
-        <div class="monitor-card-title"><ClusterOutlined style="color: var(--admin-primary)" /> 队列</div>
+      <div class="admin-card monitor-card admin-card-hover">
+        <div class="monitor-card-title">
+          <span class="monitor-title-chip monitor-title-chip--danger"><ClusterOutlined /></span>
+          队列
+        </div>
         <div class="monitor-card-body">
           <div class="info-row"><span class="info-label">驱动</span><span class="info-value">{{ info.queue?.driver || '-' }}</span></div>
           <div class="info-row"><span class="info-label">待处理</span><span class="info-value">{{ info.queue?.pending || 0 }}</span></div>
@@ -198,14 +216,31 @@ function formatDate(date) {
 
 .monitor-card-title {
   padding: 16px 20px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--admin-card-foreground);
   border-bottom: 1px solid var(--admin-border-light);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  letter-spacing: -0.01em;
 }
+
+.monitor-title-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+.monitor-title-chip--primary { background: rgba(252, 124, 60, 0.12); color: #fc7c3c; }
+.monitor-title-chip--info { background: rgba(114, 46, 209, 0.12); color: #722ed1; }
+.monitor-title-chip--success { background: rgba(82, 196, 26, 0.12); color: #52c41a; }
+.monitor-title-chip--warning { background: rgba(250, 173, 20, 0.12); color: #faad14; }
+.monitor-title-chip--danger { background: rgba(245, 34, 45, 0.12); color: #f5222d; }
+.monitor-title-chip--cyan { background: rgba(13, 148, 136, 0.12); color: #0d9488; }
 
 .monitor-card-body {
   padding: 16px 20px;

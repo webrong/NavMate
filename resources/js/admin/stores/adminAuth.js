@@ -15,8 +15,16 @@ export const useAdminAuthStore = defineStore('adminAuth', {
 
     actions: {
         async init() {
+            // /admin/api/me is polled on every admin page load to detect an
+            // existing session. When there's no session the server returns 401,
+            // which axios surfaces as a red "GET /me 401" line in the console —
+            // purely cosmetic, but noisy. Swallow that specific 401 by resolving
+            // to null from the interceptor; the request layer above never sees
+            // a rejection so nothing gets logged as an error.
             try {
-                const { data } = await request.get('/admin/api/me');
+                const { data } = await request.get('/admin/api/me', {
+                    _silent401: true,
+                });
                 this.user = data?.id ? data : null;
             } catch {
                 this.user = null;

@@ -70,6 +70,7 @@
                 v-model:value="form.password"
                 size="large"
                 placeholder="请输入密码"
+                name="password"
                 autocomplete="current-password"
               >
                 <template #prefix><LockOutlined class="field-icon" /></template>

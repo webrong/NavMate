@@ -28,10 +28,12 @@ class UpdateService
         if (file_exists($path)) {
             $data = json_decode(file_get_contents($path), true);
 
-            return $data['version'] ?? '1.0.0';
+            return $data['version'] ?? config('app.version', '1.0.0');
         }
 
-        return '1.0.0';
+        // Fallback for a fresh install with no marker file yet — keep this in
+        // sync with the git tag and config('app.version').
+        return config('app.version', '1.0.0');
     }
 
     /**
@@ -44,6 +46,47 @@ class UpdateService
         $data['version'] = $version;
         $data['updated_at'] = now()->toIso8601String();
         file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
+    }
+
+    /**
+     * Resolve a CA certificate bundle for verifying HTTPS peers.
+     *
+     * Windows PHP builds ship without a CA bundle, so cURL/openssl can't
+     * verify peers and fails with "unable to get local issuer certificate".
+     * This method picks the best available source:
+     *
+     *   1. php.ini `openssl.cafile` / `curl.cainfo` (if user configured it)
+     *   2. The bundled Mozilla CA bundle shipped with the app (cacert/cacert.pem)
+     *   3. null — caller decides whether to skip verification (local only)
+     *
+     * @return string|null  Absolute path to a PEM bundle, or null if none found.
+     */
+    protected function resolveCaBundle(): ?string
+    {
+        // 1. Honor an explicit php.ini configuration if present and readable.
+        foreach (['openssl.cafile', 'curl.cainfo'] as $iniKey) {
+            $path = trim((string) ini_get($iniKey));
+            if ($path !== '' && is_file($path) && is_readable($path)) {
+                return $path;
+            }
+        }
+
+        // 2. Bundled Mozilla CA bundle (kept up to date via the release
+        //    workflow; see cacert/cacert.pem). Covers Windows hosts that
+        //    haven't configured php.ini.
+        $bundled = base_path('cacert/cacert.pem');
+        if (is_file($bundled) && is_readable($bundled)) {
+            return $bundled;
+        }
+
+        // 3. System default paths on Linux/macOS.
+        foreach (['/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/certs/ca-certificates.crt', '/usr/local/share/certs/ca-root-nss.crt'] as $sys) {
+            if (is_file($sys) && is_readable($sys)) {
+                return $sys;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -77,11 +120,34 @@ class UpdateService
     }
 
     /**
+     * Build an HTTP client preconfigured with a sensible CA bundle.
+     *
+     * Falls back to `verify=false` ONLY on local/dev environments where no
+     * bundle is available at all — never in production. Verifying HTTPS peers
+     * is mandatory for the update flow (it downloads an archive we then exec).
+     */
+    protected function httpClient(int $timeout = 10)
+    {
+        $options = ['timeout' => $timeout, 'verify' => true];
+
+        $caBundle = $this->resolveCaBundle();
+        if ($caBundle) {
+            $options['verify'] = $caBundle;
+        } elseif (app()->environment('local', 'testing')) {
+            // Last resort for a dev box with zero CA bundle configured — don't
+            // block local testing. We never do this in production.
+            $options['verify'] = false;
+        }
+
+        return Http::withOptions($options);
+    }
+
+    /**
      * Check GitHub Releases API
      */
     protected function checkGitHub(string $currentVersion): array
     {
-        $response = Http::timeout(10)
+        $response = $this->httpClient(10)
             ->withHeaders(['Accept' => 'application/vnd.github+json'])
             ->get("https://api.github.com/repos/{$this->repo}/releases/latest");
 
@@ -141,7 +207,7 @@ class UpdateService
             ];
         }
 
-        $response = Http::timeout(10)->get($this->customSource);
+        $response = $this->httpClient(10)->get($this->customSource);
 
         if (! $response->successful()) {
             return [
@@ -563,7 +629,7 @@ class UpdateService
             $headers = [];
 
             $ch = curl_init($url);
-            curl_setopt_array($ch, [
+            $curlOptions = [
                 CURLOPT_FILE => $outHandle,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_TIMEOUT => $attemptTimeout,
@@ -580,7 +646,19 @@ class UpdateService
 
                     return strlen($header);
                 },
-            ]);
+            ];
+
+            // Use the resolved CA bundle so downloads verify peers correctly
+            // on Windows hosts that have no system CA bundle configured.
+            $caBundle = $this->resolveCaBundle();
+            if ($caBundle) {
+                $curlOptions[CURLOPT_CAINFO] = $caBundle;
+            } elseif (app()->environment('local', 'testing')) {
+                // Dev fallback only — never in production.
+                $curlOptions[CURLOPT_SSL_VERIFYPEER] = false;
+                $curlOptions[CURLOPT_SSL_VERIFYHOST] = 0;
+            }
+            curl_setopt_array($ch, $curlOptions);
 
             if ($resumeFrom > 0) {
                 curl_setopt($ch, CURLOPT_RANGE, "{$resumeFrom}-");
