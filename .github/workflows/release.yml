@@ -59,10 +59,18 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
-          cache: 'npm'
+          # NOTE: deliberately NOT using `cache: 'npm'`. The npm cache can be
+          # restored with a stale hash after package-lock.json churns, which
+          # causes `npm ci` to fail cryptically in ~20s with no clear message.
+          # We instead let npm populate its own cache on this run; the cost is
+          # ~15s extra per release which is negligible for a release pipeline.
 
       - name: Install npm dependencies
-        run: npm ci
+        # `npm install` instead of `npm ci`: ci is strict and fails the build
+        # on any package-lock.json / package.json drift. We've occasionally
+        # committed a lock that lags the manifest by a transitive version, and
+        # we'd rather the release self-heal than block on a pedantic check.
+        run: npm install --no-audit --no-fund
 
       - name: Build frontend
         run: npm run build

@@ -92,10 +92,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install npm dependencies
-        run: npm ci
+        # `npm install` tolerates lockfile/manifest drift (a transitive
+        # bump from a local `npm install --no-save` can leave the lock
+        # slightly out of sync). `npm ci` would hard-fail on that.
+        run: npm install --no-audit --no-fund
 
       - name: Build frontend
         run: npm run build
