@@ -89,18 +89,16 @@ class SiteController extends Controller
             $q = mb_substr($q, 0, 200);
         }
 
-        $visitorToken = Cookie::get('visitor_token');
-
         // Escape LIKE wildcards to prevent unintended matching
         $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $q);
 
+        // NOTE: we intentionally do NOT expose private sites (is_public=false)
+        // in the public search endpoint. Previously a visitor_token read from
+        // an unauthenticated cookie was used to match them, but that cookie is
+        // client-controlled and could be forged/leaked to enumerate another
+        // visitor's private bookmarks. Search is limited to public sites only.
         $sites = Site::active()
-            ->where(function ($query) use ($visitorToken) {
-                $query->where('is_public', true);
-                if ($visitorToken) {
-                    $query->orWhere('visitor_token', $visitorToken);
-                }
-            })
+            ->public()
             ->whereHas('category', function ($query) {
                 $query->where('is_active', true);
             })

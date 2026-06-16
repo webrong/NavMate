@@ -111,7 +111,7 @@ class SettingsController extends Controller
             'mail_encryption' => 'nullable|string|in:ssl,tls,null',
             'mail_username' => 'nullable|string|max:255',
             'mail_password' => 'nullable|string|max:255',
-            'mail_from_address' => 'nullable|string|max:255',
+            'mail_from_address' => 'nullable|email|max:255',
             'mail_from_name' => 'nullable|string|max:255',
             'baidu_verify' => 'nullable|string|max:100',
             'google_verify' => 'nullable|string|max:100',
@@ -122,10 +122,6 @@ class SettingsController extends Controller
         ]);
 
         foreach ($data as $key => $value) {
-            // Validate email format for mail fields only when non-empty
-            if ($key === 'mail_from_address' && $value !== null && $value !== '' && ! filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                continue;
-            }
             if (in_array($key, self::BOOL_KEYS)) {
                 $value = $value ? '1' : '0';
             }
