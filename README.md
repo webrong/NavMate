@@ -12,7 +12,7 @@ NavMate 是一个基于 Laravel 13 + Vue 3.5 的现代化网址导航系统，�
 
 | 后端 | 前端 |
 |------|------|
-| PHP 8.3+ / Laravel 13.2 | Vue 3.5 + Vue Router 4 |
+| PHP 8.4+ / Laravel 13.2 | Vue 3.5 + Vue Router 4 |
 | Laravel Sanctum（API 认证） | Pinia 3（状态管理） |
 | MySQL 5.7.22+ / 8.0+ | Tailwind CSS 4 |
 | Redis（缓存/队列，可选） | Ant Design Vue（后台 UI） |
@@ -42,6 +42,7 @@ NavMate 是一个基于 Laravel 13 + Vue 3.5 的现代化网址导航系统，�
 - **数据分析** — 点击趋势、热门站点、时段分布
 - **书签导入** — 支持 HTML/JSON 格式导入浏览器书签
 - **友情链接** — 管理友情链接
+- **广告管理** — 管理广告位（位置/排序/投放目标）
 - **系统设置** — 站点名称、公告、SEO、邮件等配置
 - **系统监控** — 服务器信息、缓存清理
 - **在线更新** — 内置版本更新机制（传统部署可用）
@@ -54,9 +55,9 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Api/          # 用户 API（认证、分类、收藏、布局、链接）
-│   │   └── Admin/        # 后台 API（分析、书签导入、分类、仪表盘、友链、设置、站点、系统、用户）
+│   │   └── Admin/        # 后台 API（分析、广告、书签导入、分类、仪表盘、友链、设置、站点、系统、用户）
 │   └── Middleware/       # 中间件（管理员验证、安装检测、SEO预渲染、安全头、维护模式）
-├── Models/               # Eloquent 模型（11个）
+├── Models/               # Eloquent 模型（12个）
 ├── Providers/            # 服务提供者
 └── Services/             # 业务服务（书签解析、分类树、安装器、系统信息、更新、URL抓取）
 
@@ -66,19 +67,23 @@ resources/
 │   ├── admin/            # 后台 Vue SPA
 │   │   ├── components/   # AdminLayout.vue
 │   │   ├── stores/       # adminAuth, adminCategories, adminDashboard, adminSites, adminUsers
-│   │   ├── views/        # 10 个管理页面
+│   │   ├── views/        # 11 个管理页面
 │   │   └── router/       # 后台路由
 │   ├── components/       # 前台组件（18个）
 │   │   ├── auth/         # 认证弹窗（6个）
+│   │   ├── AdBanner.vue          # 广告位
 │   │   ├── ContentSection.vue
+│   │   ├── PasswordStrength.vue  # 密码强度
+│   │   ├── ProfileSection.vue    # 个人资料
 │   │   ├── SearchBar.vue
 │   │   ├── SiteCard.vue
 │   │   ├── TheHeader.vue / TheSidebar.vue / TheFooter.vue
 │   │   ├── ThemeSwitcher.vue
 │   │   ├── ToastNotifications.vue
+│   │   ├── UserQuickLinks.vue    # 快捷链接
 │   │   └── ...
 │   ├── composables/      # useSanitize, useSeo, useTheme
-│   ├── stores/           # Pinia stores（8个）
+│   ├── stores/           # Pinia stores（9个）
 │   ├── utils/            # lunar（农历）, request（HTTP）
 │   ├── views/            # 页面组件（7个）
 │   ├── router/           # 前台路由
@@ -91,7 +96,7 @@ routes/
 └── web.php               # 所有路由定义
 
 database/
-└── migrations/           # 19 个迁移文件
+└── migrations/           # 21 个迁移文件
 ```
 
 ## 路由概览
@@ -111,6 +116,7 @@ database/
 | `GET /api/categories` | 分类列表 |
 | `GET /api/settings` | 站点设置 |
 | `GET /api/friend-links` | 友情链接 |
+| `GET /api/ads` | 广告位 |
 | `GET /api/search?q=` | 站内搜索 |
 | `POST /api/fetch-url` | 抓取 URL 元数据 |
 | `POST /api/click` | 点击记录 |
@@ -141,13 +147,14 @@ database/
 | `/admin/api/bookmarks/*` | 书签导入 |
 | `/admin/api/settings` | 系统设置 |
 | `/admin/api/friend-links` | 友情链接 |
+| `/admin/api/ads` | 广告管理 |
 | `/admin/api/system/*` | 系统操作 |
 
 ## 环境要求
 
 | 项目 | 要求 |
 |------|------|
-| **PHP** | >= 8.3（8.3 / 8.4 均可） |
+| **PHP** | >= 8.4 |
 | **必装扩展** | `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `curl`, `gd`, `fileinfo`, `zip` |
 | **可选扩展** | `redis`（使用 Redis 缓存时需要） |
 | **MySQL** | 5.7.22+ / 8.0+ |
@@ -177,7 +184,7 @@ database/
 #### 步骤 1：环境检测
 
 自动检测服务器环境，包括：
-- **PHP 版本**（要求 >= 8.3）
+- **PHP 版本**（要求 >= 8.4）
 - **必装扩展**：`pdo`, `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `curl`, `gd`, `fileinfo`
 - **可选扩展**：`redis`, `memcached`
 - **目录权限**：`storage/` 和 `bootstrap/cache/` 是否可写
@@ -340,7 +347,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM php:8.3-apache
+FROM php:8.4-apache
 WORKDIR /var/www/html
 
 # Install PHP extensions
@@ -424,13 +431,13 @@ docker compose up -d
 ```bash
 # Ubuntu/Debian
 sudo apt update
-sudo apt install -y php8.3 php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml \
-  php8.3-curl php8.3-zip php8.3-fileinfo php8.3-gd php8.3-bcmath \
+sudo apt install -y php8.4 php8.4-fpm php8.4-mysql php8.4-mbstring php8.4-xml \
+  php8.4-curl php8.4-zip php8.4-fileinfo php8.4-gd php8.4-bcmath \
   nginx mysql-server
 
 # CentOS/RHEL (Remi 仓库)
-sudo dnf install -y php83 php83-php-fpm php83-php-mysqlnd php83-php-mbstring \
-  php83-php-xml php83-php-curl php83-php-zip php83-php-gd php83-php-bcmath \
+sudo dnf install -y php84 php84-php-fpm php84-php-mysqlnd php84-php-mbstring \
+  php84-php-xml php84-php-curl php84-php-zip php84-php-gd php84-php-bcmath \
   nginx mysql-server
 ```
 
@@ -509,7 +516,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
     }
@@ -587,7 +594,7 @@ curl -sSO https://raw.githubusercontent.com/zhucaidan/btpanel-v7.7.0/main/instal
 
 在「软件商店」中安装：
 - **Nginx** 1.24+
-- **PHP-8.3** 或 **PHP-8.4**
+- **PHP-8.4**
 - **MySQL** 5.7 或 8.0
 
 安装 PHP 后，点击 PHP 版本旁的「设置」→「安装扩展」，确保以下扩展全部启用：
@@ -610,7 +617,7 @@ curl -sSO https://raw.githubusercontent.com/zhucaidan/btpanel-v7.7.0/main/instal
 
 1. 「网站」→「添加站点」
    - 域名：`nav.example.com`
-   - PHP 版本：**PHP-83** 或 **PHP-84**
+   - PHP 版本：**PHP-84**
    - 数据库：**MySQL**，创建一个数据库，记下名称和密码
    - 不要勾选「创建 FTP」
 
@@ -726,7 +733,7 @@ curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_
 
 「网站」→「创建网站」→ 选择「运行环境」：
 - 主域名：`nav.example.com`
-- 运行环境：**PHP 8.4**（如无此选项，选 8.3）
+- 运行环境：**PHP 8.4**
 - 根目录保持默认即可
 
 > 1Panel 会自动创建 PHP 容器和 OpenResty 反向代理配置。
@@ -879,6 +886,7 @@ Category ─┬── parent_id (自关联)
           └── Site ──── ClickLog
 
 FriendLink ─── 友情链接
+Ad ─────────── 广告位（位置/排序/投放目标）
 Setting ─── 系统设置（键值对）
 UpdateLog ─── 更新日志
 ```

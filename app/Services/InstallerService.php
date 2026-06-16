@@ -21,9 +21,9 @@ class InstallerService
             'category' => 'PHP 版本',
             'items' => [
                 [
-                    'label' => 'PHP 版本 (>= 8.3)',
+                    'label' => 'PHP 版本 (>= 8.4)',
                     'value' => PHP_VERSION,
-                    'pass' => version_compare(PHP_VERSION, '8.3.0', '>='),
+                    'pass' => version_compare(PHP_VERSION, '8.4.0', '>='),
                 ],
             ],
         ];
