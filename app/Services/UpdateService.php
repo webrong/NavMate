@@ -144,19 +144,55 @@ class UpdateService
 
     /**
      * Check GitHub Releases API
+     *
+     * GitHub's API can return transient 5xx (502/503/504) under load or when
+     * the network path to api.github.com is unstable (common from mainland
+     * China). We retry up to 3 times with exponential backoff before giving
+     * up, and surface a friendly "暂时性问题，稍后重试" message instead of
+     * the raw "GitHub API 请求失败: 504".
      */
     protected function checkGitHub(string $currentVersion): array
     {
-        $response = $this->httpClient(10)
-            ->withHeaders(['Accept' => 'application/vnd.github+json'])
-            ->get("https://api.github.com/repos/{$this->repo}/releases/latest");
+        $url = "https://api.github.com/repos/{$this->repo}/releases/latest";
+        $headers = ['Accept' => 'application/vnd.github+json'];
 
-        if (! $response->successful()) {
-            $errorMsg = 'GitHub API 请求失败: '.$response->status();
-            if ($response->status() === 403) {
-                $remaining = $response->header('X-RateLimit-Remaining');
+        $response = null;
+        $lastStatus = 0;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            try {
+                $response = $this->httpClient(20)
+                    ->withHeaders($headers)
+                    ->get($url);
+                $lastStatus = $response->status();
+                // 2xx → done. 4xx (auth/rate-limit/not-found) → no point retrying.
+                if ($response->successful() || $lastStatus < 500) {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // Network error (cURL timeout, DNS, etc.) — retry.
+                $lastStatus = 0;
+            }
+            if ($attempt < 3) {
+                usleep(500000 * (2 ** ($attempt - 1))); // 0.5s, 1s
+            }
+        }
+
+        if (! $response || ! $response->successful()) {
+            // Map the failure to a user-actionable message.
+            if ($lastStatus >= 500 || $lastStatus === 0) {
+                return [
+                    'has_update' => false,
+                    'current_version' => $currentVersion,
+                    'error' => 'GitHub 服务暂时不可用（'.
+                        ($lastStatus ?: '网络超时').
+                        '），通常是网络拥堵或 GitHub 服务器繁忙，请稍后重试。',
+                ];
+            }
+            $errorMsg = 'GitHub API 请求失败: '.$lastStatus;
+            if ($lastStatus === 403) {
+                $remaining = $response?->header('X-RateLimit-Remaining');
                 if ($remaining === '0') {
-                    $reset = $response->header('X-RateLimit-Reset');
+                    $reset = $response?->header('X-RateLimit-Reset');
                     $waitMinutes = $reset ? max(1, round(($reset - time()) / 60)) : 60;
                     $errorMsg = "GitHub API 请求次数已用完，请 {$waitMinutes} 分钟后再试";
                 }
