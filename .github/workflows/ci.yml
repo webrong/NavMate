@@ -61,8 +61,14 @@ jobs:
           # APP_KEY to boot. Generate one into a minimal .env.
           cp .env.example .env
           php artisan key:generate
+          # Smoke-test that the app boots — a config error here would otherwise
+          # fail the test step opaquely (the tee'd output file is never created
+          # because the step never reaches it).
+          php artisan config:clear
+          php artisan about > /dev/null
 
       - name: Run tests
+        id: tests
         run: |
           # Capture full output so failures are visible in the job summary,
           # not just the truncated annotation.
@@ -75,10 +81,16 @@ jobs:
       - name: Publish test output on failure
         if: failure()
         run: |
-          echo '## Test output' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo '## Test / prepare output'
+            echo '```'
+            if [ -f /tmp/test-output.txt ]; then
+              cat /tmp/test-output.txt
+            else
+              echo '(test-output.txt not created — a step before "Run tests" failed)'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   frontend-build:
     name: Frontend · Vite Build
