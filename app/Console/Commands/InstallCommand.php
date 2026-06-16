@@ -21,7 +21,7 @@ class InstallCommand extends Command
         {--app-url=http://localhost : Application URL}
         {--admin-name=Admin : Admin username}
         {--admin-email= : Admin email}
-        {--admin-password= : Admin password (min 8 chars)}
+        {--admin-password= : Admin password (min 8 chars). WARNING: passing via CLI exposes it in shell history & process list — prefer interactive prompt}
         {--seed : Seed sample navigation data}
         {--skip-mail : Skip mail configuration}';
 

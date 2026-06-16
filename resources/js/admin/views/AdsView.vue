@@ -167,7 +167,17 @@ function openCreate() {
 
 function openEdit(record) {
   editingId.value = record.id;
-  Object.assign(form, { ...record });
+  // Pick only the form fields — avoids leaking id/created_at/clicks etc.
+  // into the form payload on submit.
+  Object.assign(form, {
+    title: record.title,
+    image_url: record.image_url,
+    link_url: record.link_url,
+    position: record.position,
+    sort_order: record.sort_order,
+    is_active: record.is_active,
+    target: record.target,
+  });
   modalVisible.value = true;
 }
 

@@ -174,7 +174,7 @@ onMounted(() => loadInfo(false));
 async function loadInfo(refresh) {
   loading.value = true;
   try {
-    const { data } = await request.get('/admin/api/system/info' + (refresh ? '?refresh=1' : ''));
+    const { data } = await request.get('/admin/api/system/info', { params: refresh ? { refresh: 1 } : {} });
     info.value = data;
     if (refresh) message.success('已刷新');
   } catch {

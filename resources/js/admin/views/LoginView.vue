@@ -117,13 +117,16 @@ const form = reactive({ email: '', password: '', remember: false });
 async function handleLogin() {
   loading.value = true;
   errorMsg.value = '';
-  const result = await authStore.login(form.email, form.password, form.remember);
-  loading.value = false;
-  if (result.success !== false) {
-    message.success('登录成功');
-    router.push('/admin/dashboard').catch(() => {});
-  } else {
-    errorMsg.value = result.message || '登录失败';
+  try {
+    const result = await authStore.login(form.email, form.password, form.remember);
+    if (result.success !== false) {
+      message.success('登录成功');
+      router.push('/admin/dashboard').catch(() => {});
+    } else {
+      errorMsg.value = result.message || '登录失败';
+    }
+  } finally {
+    loading.value = false;
   }
 }
 </script>

@@ -138,8 +138,13 @@ jobs:
             --exclude='.phpunit.cache' \
             --exclude='.phpunit.result.cache' \
             --exclude='*.zip' \
+            --exclude='*.sql' \
             --exclude='.DS_Store' \
             --exclude='Thumbs.db' \
+            --exclude='docs' \
+            --exclude='CLEANUP_REPORT.md' \
+            --exclude='_*.py' \
+            --exclude='_*.php' \
             ./ "stage/${PKG_DIR}/"
 
           # Zip from inside stage/ so the archive has a single root subdir
