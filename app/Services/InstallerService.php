@@ -368,13 +368,17 @@ class InstallerService
     protected function createAdmin(array $data): void
     {
         $username = $data['admin_username'] ?? 'admin';
+        // Email is no longer used for admin login but the column is NOT NULL +
+        // UNIQUE. Generate a unique placeholder when none is provided so
+        // re-installs with the same username don't collide.
+        $email = $data['admin_email'] ?? ($username.'-'.str()->random(8).'@localhost');
 
         AdminUser::updateOrCreate(
             ['username' => $username],
             [
                 'name' => $data['admin_name'] ?? 'Admin',
                 'username' => $username,
-                'email' => $data['admin_email'] ?? ($username.'@localhost'),
+                'email' => $email,
                 'password' => $data['admin_password'],
                 'email_verified_at' => now(),
             ],

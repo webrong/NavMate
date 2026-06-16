@@ -436,11 +436,11 @@
                     <div style="font-size: 14px; font-weight: 500; color: #555; margin-bottom: 12px;">管理员账号</div>
                 </div>
                 <div class="form-group">
-                    <label>管理员用户名<span class="required">*</span></label>
-                    <input type="text" class="form-input" id="admin-name" value="Admin" placeholder="用户名">
+                    <label>管理员昵称<span class="required">*</span></label>
+                    <input type="text" class="form-input" id="admin-name" value="Admin" placeholder="显示昵称">
                 </div>
                 <div class="form-group">
-                    <label>管理员邮箱<span class="required">*</span></label>
+                    <label>登录用户名<span class="required">*</span></label>
                     <input type="text" class="form-input" id="admin-username" value="admin" placeholder="登录用户名（字母数字下划线）">
                 </div>
                 <div class="form-row">
@@ -779,7 +779,7 @@ const wizard = {
         const pwd2 = document.getElementById('admin-password-confirm').value;
 
         if (!name) { alert('请输入管理员用户名'); return false; }
-        if (!email) { alert('请输入管理员邮箱'); return false; }
+        if (!username) { alert('请输入登录用户名'); return false; }
         if (pwd.length < 8) { alert('密码至少8位'); return false; }
         if (pwd !== pwd2) { alert('两次密码不一致'); return false; }
         return true;

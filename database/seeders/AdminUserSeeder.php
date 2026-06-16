@@ -10,9 +10,10 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         AdminUser::firstOrCreate(
-            ['email' => env('ADMIN_EMAIL', 'admin@navigation.com')],
+            ['username' => 'admin'],
             [
                 'name' => 'Admin',
+                'email' => env('ADMIN_EMAIL', 'admin@localhost'),
                 'password' => env('ADMIN_PASSWORD', 'admin123'),
                 'email_verified_at' => now(),
             ]
