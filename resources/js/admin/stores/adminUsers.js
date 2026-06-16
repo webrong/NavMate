@@ -24,7 +24,7 @@ export const useAdminUsersStore = defineStore('adminUsers', {
             } finally {
                 this.loading = false;
             }
-        },,
+        },
 
         async update(id, formData) {
             const { data } = await request.put(`/admin/api/users/${id}`, formData);

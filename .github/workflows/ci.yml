@@ -112,19 +112,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Build frontend
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee /tmp/build-output.txt
-
-      - name: Publish build output on failure
-        if: failure()
-        run: |
-          {
-            echo '## Frontend build output'
-            echo '```'
-            cat /tmp/build-output.txt 2>/dev/null || echo '(no output captured)'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: npm run build
 
       - name: Verify build output
         run: |
