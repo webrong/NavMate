@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Site;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 /**
@@ -316,7 +317,7 @@ class BookmarkParserService
                         ]);
                         $imported['categories']++;
                         break;
-                    } catch (\Illuminate\Database\QueryException $e) {
+                    } catch (QueryException $e) {
                         // MySQL duplicate key: 1062. Only retry on this error;
                         // anything else rethrows to abort the transaction.
                         if ($attempt === 2 || ($e->errorInfo[1] ?? 0) !== 1062) {

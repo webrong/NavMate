@@ -65,7 +65,9 @@ class UpdateTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('has_update', true);
         $response->assertJsonPath('latest_version', '2.0.0');
-        $response->assertJsonPath('current_version', '1.0.0');
+        // current_version comes from config('app.version'); assert against the
+        // live value rather than hard-coding, so this test survives releases.
+        $response->assertJsonPath('current_version', config('app.version'));
         $response->assertJsonPath('download_url', 'https://github.com/webrong/NavMate/releases/download/v2.0.0/navmate-v2.0.0.zip');
         $response->assertJsonPath('changelog', "## Breaking changes\n- Rewrite frontend");
     }
@@ -133,7 +135,9 @@ class UpdateTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('has_update', false);
-        $this->assertStringContainsString('GitHub API 请求失败', $response->json('error'));
+        // 5xx responses are retried then surfaced as a transient-availability
+        // message (friendlier than the raw "GitHub API 请求失败: 500").
+        $this->assertStringContainsString('GitHub 服务暂时不可用', $response->json('error'));
     }
 
     public function test_check_update_returns_error_when_repo_not_configured(): void

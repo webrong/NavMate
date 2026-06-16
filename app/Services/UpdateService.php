@@ -59,7 +59,7 @@ class UpdateService
      *   2. The bundled Mozilla CA bundle shipped with the app (cacert/cacert.pem)
      *   3. null — caller decides whether to skip verification (local only)
      *
-     * @return string|null  Absolute path to a PEM bundle, or null if none found.
+     * @return string|null Absolute path to a PEM bundle, or null if none found.
      */
     protected function resolveCaBundle(): ?string
     {

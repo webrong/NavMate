@@ -53,17 +53,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Check code style (Laravel Pint)
-        run: |
-          set -o pipefail
-          ./vendor/bin/pint --test -v 2>&1 | tee /tmp/pint-output.txt
-
-      - name: Publish Pint output on failure
-        if: failure()
-        run: |
-          echo '## Pint output' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/pint-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+        run: ./vendor/bin/pint --test
 
       - name: Prepare application
         run: |
