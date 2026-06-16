@@ -19,7 +19,10 @@ class UserLayoutController extends Controller
     public function update(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'layout_data' => 'required|array',
+            // Cap the number of layout entries to guard the JSON column against
+            // abuse. A real layout has one entry per category; 200 is far above
+            // any plausible category count.
+            'layout_data' => 'required|array|max:200',
             'layout_data.*.category_id' => 'required|exists:categories,id',
             'layout_data.*.visible' => 'required|boolean',
             'layout_data.*.sort_order' => 'required|integer',
