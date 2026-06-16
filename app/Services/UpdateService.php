@@ -647,11 +647,11 @@ class UpdateService
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $resumeFrom = is_file($zipPath) ? (@filesize($zipPath) ?: 0) : 0;
 
-            // Decide open mode: append when resuming, truncate on first run.
-            // Also detect a critical edge case: if the previous attempt got a
-            // full 200 response (server ignored Range) the file is already
-            // complete, and we'd wrongly append more. The header capture below
-            // guards against this.
+            // When resuming we send a Range header and expect a 206 response.
+            // If the server ignores Range and returns a full 200 instead, the
+            // complete body gets written after the bytes we already had,
+            // corrupting the archive (old prefix + full new file). We detect
+            // that case below (httpCode 200 + resumeFrom > 0) and start over.
             $mode = $resumeFrom > 0 ? 'ab' : 'wb';
             $outHandle = fopen($zipPath, $mode);
             if ($outHandle === false) {
@@ -711,11 +711,12 @@ class UpdateService
             $currentSize = @filesize($zipPath) ?: 0;
 
             // Case 1: cURL error (timeout, connection reset, etc).
-            // These are recoverable — retry to resume from currentSize.
-            $recoverable = in_array($errno, [0, 28, 56, 18, 52, 53, 55], true);
-            if ($errno !== 0 && $errno !== 28) {
-                // A real failure (not a clean timeout). Keep partial and retry
-                // only if recoverable; otherwise abort.
+            // A timeout (28) or partial-transfer error (18) leaves a truncated
+            // but otherwise valid prefix — safe to resume. Other errors abort.
+            // On a timeout the HTTP code is unreliable (may be 0), so we must
+            // not fall through to the HTTP-code checks below; retry instead.
+            if ($errno !== 0) {
+                $recoverable = in_array($errno, [28, 18, 56, 52, 53, 55], true);
                 if (! $recoverable || $attempt >= $maxAttempts) {
                     @unlink($zipPath);
                     throw new \RuntimeException(
@@ -733,11 +734,25 @@ class UpdateService
                 throw new \RuntimeException('下载发布包失败: HTTP '.$httpCode);
             }
 
-            // Case 3: Got a full 200 response (server ignored our Range header,
-            // or first attempt). The file was rewritten from the start —
-            // cURL wrote the complete body, so we're done.
+            // Case 3: Server ignored our Range header and returned a full 200.
+            // If we were resuming (resumeFrom > 0), cURL appended the complete
+            // body AFTER the stale prefix, producing a corrupt file. We must
+            // discard it and retry from scratch. (On the first attempt, 200 is
+            // the normal "full download" case — file is correct as written.)
             if ($httpCode === 200) {
-                break;
+                if ($resumeFrom > 0) {
+                    // Corrupted by append-on-full-response. Start over.
+                    @unlink($zipPath);
+                    if ($attempt >= $maxAttempts) {
+                        throw new \RuntimeException(
+                            '下载发布包失败：更新源不支持断点续传且多次重试未完成，请稍后重试。'
+                        );
+                    }
+                    usleep(500000);
+
+                    continue;
+                }
+                break; // first attempt, full 200 — done
             }
 
             // Case 4: 206 Partial Content. If we know the total size, check if
@@ -764,6 +779,33 @@ class UpdateService
             @unlink($zipPath);
             throw new \RuntimeException('下载文件过大（'.round($fileSize / 1024 / 1024, 1).'MB），超过 200MB 限制');
         }
+
+        // Integrity self-check: open the archive with ZipArchive and make sure
+        // it is valid. When the update source does not provide a SHA256
+        // checksum (e.g. GitHub releases without a separately published digest),
+        // this is our last line of defence — otherwise a truncated/corrupt
+        // download only fails later in extractAndReplace with the opaque
+        // "无法打开下载的压缩包", and by then we've already spent the backup.
+        // We surface a clearer error and include the actual/expected sizes when
+        // the server told us the total via Content-Range.
+        $test = new ZipArchive;
+        $openResult = $test->open($zipPath);
+        if ($openResult !== true) {
+            $sizeHint = '';
+            if ($totalSize !== null) {
+                $sizeHint = "（预期 {$totalSize} 字节，实际 {$fileSize} 字节，可能下载不完整）";
+            } elseif ($fileSize !== false && $fileSize < 1024) {
+                $sizeHint = "（文件仅 {$fileSize} 字节，可能是错误页面而非压缩包）";
+            }
+            @unlink($zipPath);
+            $reason = $openResult === ZipArchive::ER_NOZIP
+                ? '下载的文件不是有效的 ZIP 压缩包'
+                : ($openResult === ZipArchive::ER_READ
+                    ? '下载的压缩包读取失败，可能不完整'
+                    : '下载的压缩包无法打开（代码 '.$openResult.'）');
+            throw new \RuntimeException("{$reason}{$sizeHint}，请稍后重试。");
+        }
+        $test->close();
 
         return $zipPath;
     }
