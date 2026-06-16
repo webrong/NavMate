@@ -6,6 +6,20 @@
 
 ---
 
+## P11. 仪表盘点击量缓存导致不更新（2026-06-16）
+
+**现象**：管理员点击站点后，仪表盘的「总点击量」和「今日点击」一点都没变化。
+
+**根因**：`DashboardController` 把 `total_clicks`（`Site::sum('clicks')`）和 `today_clicks`（`ClickLog` 当日计数）缓存了 5 分钟（`dashboard:stats`）。而 `click()` 方法更新数据库后不触发 `ClearsDashboardCache`（只有增删改分类/站点才清）。点击量是高频实时数据，5 分钟缓存让它「凝固」。
+
+**修复**：把低频数据（分类数/站点数）和点击量拆开——分类/站点数继续缓存 5 分钟（`dashboard:counts`），点击量每次实时查询无缓存。热门站点（`dashboard:top`，按 clicks 排序）TTL 从 300 秒降到 60 秒。
+
+**教训**：不要把高频实时数据（计数器、点击量）和低频元数据（总条目数）放在同一个缓存块里。实时数据要么不缓存，要么单独短 TTL。
+
+**影响文件**：`app/Http/Controllers/Admin/DashboardController.php`、`app/Traits/ClearsDashboardCache.php`（键名 `dashboard:stats` → `dashboard:counts`）
+
+---
+
 ## P10. SSE 流式端点的 session 锁阻塞（2026-06-16）
 
 **现象**：升级进度条用 SSE 流式输出，但流开始后其他 admin 页面请求全部卡住（loading 不结束）。

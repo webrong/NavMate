@@ -123,7 +123,8 @@ git push origin v1.3.x
 
 快速速记（最新在前）：
 
-1. **SSE session 锁**：流式端点入口必须 `Session::save()` 释放锁
+1. **仪表盘点击量缓存**：高频实时数据（clicks）不要和低频元数据（站点数）放同一缓存块，点击量实时查询
+2. **SSE session 锁**：流式端点入口必须 `Session::save()` 释放锁
 2. **缓存 Eloquent Collection**：`Cache::remember` 闭包返回纯数组，别缓存 Collection（`->count` 与 Model 方法冲突 → 500）
 3. **断点续传损坏**：续传收到 200 时 cURL 追加到旧文件 → zip 损坏，需检测后重下
 4. **在线升级鸡生蛋**：升级修复需发版 + 手动更新一次才能到达用户
