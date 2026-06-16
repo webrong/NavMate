@@ -118,13 +118,21 @@ git push origin v1.3.x
 
 ## 已知陷阱（踩过的坑）
 
-1. **`composer validate --strict`**：`composer.json` 不能有 `version` 字段（warning 升级为 error）
-2. **Pint 规则**：`catch (\Full\Class $e)` 要改成 `use` 导入 + `catch (Class $e)`（`fully_qualified_strict_types`）
-3. **缓存 Eloquent Collection**：`->keyBy()` 后缓存再访问 `->count` 会与 Model 方法冲突（500）。缓存闭包里用 `->pluck()->toArray()` 返回纯数组
-4. **SSR SEO 数据源**：`AppServiceProvider` 的 `View::composer('spa')` 必须从数据库 `Setting::allCached()` 读，不是 `settings.json`
-5. **搜索接口**：私有站点（`is_public=false`）不出现在公共搜索，不要用 cookie 的 `visitor_token` 匹配（可伪造）
-6. **session 锁**：SSE 流式端点必须在入口 `Session::save()` 释放锁，否则阻塞同 session 的其他请求
-7. **PHP 内联 `-r`**：Windows cmd 下 `php -r` 的 `$` 转义有问题，写 .php 文件更可靠
+> 完整日志（含现象/根因/修复/影响文件）见 **[`docs/PITFALLS.md`](docs/PITFALLS.md)**。
+> 新踩的坑请追加到该文件顶部，并同步更新下面的摘要。
+
+快速速记（最新在前）：
+
+1. **SSE session 锁**：流式端点入口必须 `Session::save()` 释放锁
+2. **缓存 Eloquent Collection**：`Cache::remember` 闭包返回纯数组，别缓存 Collection（`->count` 与 Model 方法冲突 → 500）
+3. **断点续传损坏**：续传收到 200 时 cURL 追加到旧文件 → zip 损坏，需检测后重下
+4. **在线升级鸡生蛋**：升级修复需发版 + 手动更新一次才能到达用户
+5. **PHP `-r` 编码**：Windows cmd 下写 .php 文件执行，不用 `-r` 内联
+6. **composer validate --strict**：`composer.json` 不能有 `version` 字段
+7. **Pint fully_qualified_strict_types**：`catch (\Class $e)` 要改成 `use` 导入
+8. **SSR SEO 数据源**：`View::composer('spa')` 读数据库 `Setting::allCached()`，不是 `settings.json`
+9. **搜索越权**：私有站点不出现在公共搜索，不用可伪造的 `visitor_token`
+10. **书签 slug 竞争**：并发导入捕获唯一约束冲突（1062）重试
 
 ## 目录速查
 
