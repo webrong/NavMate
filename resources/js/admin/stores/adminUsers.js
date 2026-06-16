@@ -18,10 +18,13 @@ export const useAdminUsersStore = defineStore('adminUsers', {
                 const { data } = await request.get('/admin/api/users', { params: query });
                 this.items = data.data || [];
                 this.total = data.total || 0;
+            } catch {
+                // Error toast already shown by request.js interceptor.
+                // Swallow to prevent unhandled rejection in the view.
             } finally {
                 this.loading = false;
             }
-        },
+        },,
 
         async update(id, formData) {
             const { data } = await request.put(`/admin/api/users/${id}`, formData);

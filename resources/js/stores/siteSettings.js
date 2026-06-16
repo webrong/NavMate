@@ -27,6 +27,8 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
             home_background_image: '',
         },
         loaded: false,
+        // Auto-invalidate stale settings so admin changes eventually show up.
+        lastFetchedAt: 0,
     }),
 
     getters: {
@@ -51,11 +53,18 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
     },
 
     actions: {
-        async fetchSettings() {
+        async fetchSettings(force = false) {
+            // Skip if we have fresh data and the caller didn't force a refresh.
+            // Prevents a stale admin change from being invisible to long-lived
+            // front-end sessions.
+            if (!force && this.loaded && Date.now() - this.lastFetchedAt < 5 * 60 * 1000) {
+                return;
+            }
             try {
                 const { data } = await request.get('/api/settings');
                 this.settings = data;
                 this.loaded = true;
+                this.lastFetchedAt = Date.now();
 
                 // Update meta description
                 if (data.site_description) {
@@ -65,6 +74,11 @@ export const useSiteSettingsStore = defineStore('siteSettings', {
             } catch {
                 // Settings not available, use defaults
             }
+        },
+
+        /** Force-refresh settings on next fetchSettings call. */
+        invalidate() {
+            this.lastFetchedAt = 0;
         },
     },
 });

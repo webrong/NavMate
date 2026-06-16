@@ -257,7 +257,11 @@ async function fetchAll() {
   loading.value = true;
   try {
     const params = getParams();
-    const [trendsRes, topRes, summaryRes, catRes, hourlyRes, recentRes] = await Promise.all([
+    // Use allSettled so one failing endpoint doesn't blank out all charts.
+    // Each endpoint is independent — trends can render even if hourly errors.
+    const [
+      trendsRes, topRes, summaryRes, catRes, hourlyRes, recentRes,
+    ] = await Promise.allSettled([
       request.get('/admin/api/analytics/trends', { params }),
       request.get('/admin/api/analytics/top-sites', { params }),
       request.get('/admin/api/analytics/summary', { params }),
@@ -265,12 +269,12 @@ async function fetchAll() {
       request.get('/admin/api/analytics/hourly', { params }),
       request.get('/admin/api/analytics/recent-clicks', { params: { limit: 20 } }),
     ]);
-    trends.value = trendsRes.data?.data || [];
-    topSites.value = topRes.data?.data || [];
-    Object.assign(summary, summaryRes.data?.data || {});
-    topCategories.value = catRes.data?.data || [];
-    hourlyData.value = hourlyRes.data?.data || [];
-    recentClicks.value = recentRes.data?.data || [];
+    if (trendsRes.status === 'fulfilled') trends.value = trendsRes.value.data?.data || [];
+    if (topRes.status === 'fulfilled') topSites.value = topRes.value.data?.data || [];
+    if (summaryRes.status === 'fulfilled') Object.assign(summary, summaryRes.value.data?.data || {});
+    if (catRes.status === 'fulfilled') topCategories.value = catRes.value.data?.data || [];
+    if (hourlyRes.status === 'fulfilled') hourlyData.value = hourlyRes.value.data?.data || [];
+    if (recentRes.status === 'fulfilled') recentClicks.value = recentRes.value.data?.data || [];
   } finally {
     loading.value = false;
   }

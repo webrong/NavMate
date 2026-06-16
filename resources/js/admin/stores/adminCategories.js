@@ -13,6 +13,9 @@ export const useAdminCategoriesStore = defineStore('adminCategories', {
             try {
                 const { data } = await request.get('/admin/api/categories', { params });
                 this.items = data.data || [];
+            } catch {
+                // Error toast already shown by request.js interceptor.
+                // Swallow to prevent unhandled rejection in the view.
             } finally {
                 this.loading = false;
             }

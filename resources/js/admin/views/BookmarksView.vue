@@ -75,18 +75,21 @@ const previewData = ref(null);
 const importResult = ref(null);
 const skipDuplicates = ref(true);
 const importing = ref(false);
-const bookmarkHtml = ref('');
+// Hold the original File object so preview and import use the exact same
+// source. Previously import rebuilt a Blob from an async FileReader result,
+// which could be empty/stale if the read hadn't finished — a data-source
+// mismatch between preview and import.
+let bookmarkFile = null;
 
 function beforeUpload(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => { bookmarkHtml.value = e.target.result; };
-  reader.readAsText(file);
+  bookmarkFile = file;
   return false;
 }
 
 async function handleUpload(options) {
+  bookmarkFile = options.file;
   const formData = new FormData();
-  formData.append('bookmark_file', options.file);
+  formData.append('bookmark_file', bookmarkFile);
   try {
     const { data } = await request.post('/admin/api/bookmarks/preview', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -100,11 +103,14 @@ async function handleUpload(options) {
 }
 
 async function handleImport() {
+  if (!bookmarkFile) {
+    message.warning('请先上传书签文件');
+    return;
+  }
   importing.value = true;
   try {
     const formData = new FormData();
-    const blob = new Blob([bookmarkHtml.value], { type: 'text/html' });
-    formData.append('bookmark_file', blob, 'bookmark.html');
+    formData.append('bookmark_file', bookmarkFile);
     const { data } = await request.post('/admin/api/bookmarks/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       params: { skip_duplicate: skipDuplicates.value },
