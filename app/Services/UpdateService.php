@@ -270,7 +270,7 @@ class UpdateService
     /**
      * Execute the update process
      */
-    public function update(): array
+    public function update(?callable $onProgress = null): array
     {
         $lockFile = storage_path('framework/update.lock');
         $lockHandle = fopen($lockFile, 'w+');
@@ -286,7 +286,7 @@ class UpdateService
         }
 
         try {
-            $result = $this->doUpdate();
+            $result = $this->doUpdate($onProgress);
         } finally {
             flock($lockHandle, LOCK_UN);
             fclose($lockHandle);
@@ -296,7 +296,7 @@ class UpdateService
         return $result;
     }
 
-    protected function doUpdate(): array
+    protected function doUpdate(?callable $onProgress = null): array
     {
         // The upgrade touches thousands of files (vendor alone is 10k+) and
         // downloads an 11MB+ archive. PHP's default max_execution_time (30s)
@@ -312,9 +312,20 @@ class UpdateService
         $backupPath = null;
         $updateInfo = [];
 
+        // Helper: append to log AND notify the progress callback (if any).
+        // status 'running' = step just started; 'done' = step finished.
+        $notify = function (int $step, string $message, string $status = 'done') use ($onProgress, &$log): void {
+            $log .= $status === 'running'
+                ? "[{$step}/9] {$message}...\n"
+                : "    {$message}\n";
+            if ($onProgress) {
+                $onProgress($step, 9, $message, $status);
+            }
+        };
+
         try {
             // 1. Check for update
-            $log .= "[1/9] 检查更新...\n";
+            $notify(1, '检查更新', 'running');
             $updateInfo = $this->checkForUpdate();
 
             if (! empty($updateInfo['error'])) {
@@ -334,22 +345,22 @@ class UpdateService
             }
 
             // 2. Enable maintenance mode (direct file write, no Artisan::call)
-            $log .= "[2/9] 开启维护模式...\n";
+            $notify(2, '开启维护模式', 'running');
             $this->enableMaintenanceMode();
 
             // 3. Create backup
-            $log .= "[3/9] 备份当前文件...\n";
+            $notify(3, '备份当前文件', 'running');
             $backupPath = $this->createBackup($currentVersion);
 
             // 4. Backup database
-            $log .= "[4/9] 备份数据库...\n";
+            $notify(4, '备份数据库', 'running');
             $dbBackup = $this->backupDatabase();
-            $log .= $dbBackup
-                ? "    数据库已备份到: {$dbBackup}\n"
-                : "    ⚠ 数据库备份跳过（mysqldump 不可用或备份失败）\n";
+            $notify(4, $dbBackup
+                ? "数据库已备份到: {$dbBackup}"
+                : '⚠ 数据库备份跳过（mysqldump 不可用或备份失败）');
 
             // 5. Download release
-            $log .= "[5/9] 下载新版本 {$targetVersion}...\n";
+            $notify(5, "下载新版本 {$targetVersion}", 'running');
             $zipPath = $this->downloadRelease($downloadUrl);
 
             // 5.5 Verify integrity (SHA256 checksum) if provided by update source
@@ -359,25 +370,25 @@ class UpdateService
                     @unlink($zipPath);
                     throw new \RuntimeException("下载包完整性校验失败（预期: {$updateInfo['sha256']}, 实际: {$actualHash}）");
                 }
-                $log .= "    SHA256 校验通过\n";
+                $notify(5, 'SHA256 校验通过');
             } else {
-                $log .= "    ⚠ 更新源未提供 SHA256 校验值，跳过完整性验证\n";
+                $notify(5, '⚠ 更新源未提供 SHA256 校验值，跳过完整性验证');
             }
 
             // 6. Extract and replace
-            $log .= "[6/9] 解压并替换文件...\n";
+            $notify(6, '解压并替换文件', 'running');
             $this->extractAndReplace($zipPath);
 
             // 7. Update version
-            $log .= "[7/9] 更新版本号...\n";
+            $notify(7, '更新版本号', 'running');
             $this->setCurrentVersion($targetVersion);
 
             // 8. Run migrations (via Migrator, no Artisan::call)
-            $log .= "[8/9] 运行数据库迁移...\n";
+            $notify(8, '运行数据库迁移', 'running');
             $this->runMigrations();
 
             // 9. Clear cache and disable maintenance mode
-            $log .= "[9/9] 清除缓存并关闭维护模式...\n";
+            $notify(9, '清除缓存并关闭维护模式', 'running');
             $this->clearCache();
             $this->disableMaintenanceMode();
 

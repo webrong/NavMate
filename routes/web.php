@@ -179,7 +179,7 @@ Route::prefix('admin/api')->middleware(['auth:admin'])->group(function () {
     // System
     Route::get('/system/info', [SystemController::class, 'info'])->name('admin.system.info');
     Route::get('/system/check-update', [SystemController::class, 'checkUpdate'])->name('admin.system.check-update');
-    Route::post('/system/update', [SystemController::class, 'update'])->middleware('throttle:1,60')->name('admin.system.update');
+    Route::post('/system/update', [SystemController::class, 'update'])->name('admin.system.update');
     Route::get('/system/update-logs', [SystemController::class, 'updateLogs'])->name('admin.system.update-logs');
     Route::post('/system/clear-cache', [SystemController::class, 'clearCache'])->name('admin.system.clear-cache');
 });
