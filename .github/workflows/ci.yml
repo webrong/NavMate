@@ -115,10 +115,9 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee /tmp/build-output.txt
-        continue-on-error: true
 
       - name: Publish build output on failure
-        if: always()
+        if: failure()
         run: |
           {
             echo '## Frontend build output'
