@@ -122,22 +122,26 @@ class AnalyticsController extends Controller
     {
         $days = $this->getDays($request);
 
-        $hours = Cache::remember("analytics:hourly:{$days}", self::CACHE_TTL, function () use ($days) {
+        // Cache a plain hour=>count array (not a Collection) to avoid
+        // Eloquent Model serialization issues and `->count` ambiguity (count
+        // is also a Model method).
+        $hourMap = Cache::remember("analytics:hourly:{$days}", self::CACHE_TTL, function () use ($days) {
             $startDate = now()->subDays($days)->startOfDay();
 
             return ClickLog::where('clicked_at', '>=', $startDate)
-                ->select(DB::raw('HOUR(clicked_at) as hour'), DB::raw('COUNT(*) as count'))
+                ->select(DB::raw('HOUR(clicked_at) as hour'), DB::raw('COUNT(*) as cnt'))
                 ->groupBy('hour')
                 ->orderBy('hour')
-                ->get()
-                ->keyBy('hour');
+                ->pluck('cnt', 'hour')
+                ->map(fn ($v) => (int) $v)
+                ->toArray();
         });
 
         $data = [];
         for ($i = 0; $i < 24; $i++) {
             $data[] = [
                 'hour' => $i,
-                'count' => $hours->get($i)?->count ?? 0,
+                'count' => $hourMap[$i] ?? 0,
             ];
         }
 
