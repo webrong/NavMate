@@ -6,7 +6,6 @@ use App\Models\Setting;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -31,12 +30,23 @@ class AppServiceProvider extends ServiceProvider
 
             return $rule;
         });
-        // Share site settings with SPA views
+        // Share site settings with SPA views.
+        //
+        // Settings live in the database (Setting model) now; the legacy
+        // storage/app/settings.json file is only kept for the one-off
+        // settings:migrate-json command. Reading from the DB here — via the
+        // same allCached() helper used by the prerender view and the public
+        // settings API — ensures the server-rendered <meta> tags
+        // (site_description, search-engine verification codes, etc.) reflect
+        // what the admin actually configured, instead of falling back to the
+        // defaults because the JSON file no longer exists on fresh installs.
         View::composer('spa', function ($view) {
-            $settingsPath = storage_path('app/settings.json');
-            $settings = File::exists($settingsPath)
-                ? json_decode(File::get($settingsPath), true) ?? []
-                : [];
+            $settings = [];
+            try {
+                $settings = Setting::allCached()->all();
+            } catch (\Throwable) {
+                // Settings table may not exist yet (during install/migrations).
+            }
 
             $view->with('settings', $settings);
         });

@@ -22,17 +22,17 @@ class MigrateSettingsCommand extends Command
         $count = 0;
 
         foreach ($json as $key => $value) {
+            // Normalise to the string/'1'/'0'/null representation the settings
+            // table expects (matching how SettingsController stores values).
             if (is_bool($value)) {
                 $value = $value ? '1' : '0';
-            } elseif (is_null($value)) {
-                $value = null;
-            } else {
+            } elseif ($value !== null) {
                 $value = (string) $value;
             }
 
             Setting::updateOrCreate(
                 ['key' => $key],
-                ['value' => is_string($value) ? $value : null]
+                ['value' => $value]
             );
             $count++;
         }

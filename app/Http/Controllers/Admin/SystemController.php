@@ -62,7 +62,15 @@ class SystemController extends Controller
     }
 
     /**
-     * Clear all application caches
+     * Clear all application caches.
+     *
+     * NOTE: Cache::flush() wipes the entire cache store, including the
+     * RateLimiter counters used by login throttle (auth/admin login) and the
+     * per-route throttle middleware. Clearing caches therefore momentarily
+     * resets those counters — e.g. an IP mid brute-force would get a fresh
+     * budget. This is acceptable for an admin-initiated, infrequent action
+     * (counters rebuild within seconds as traffic resumes), but be aware this
+     * is NOT a surgical invalidation.
      */
     public function clearCache(): JsonResponse
     {

@@ -299,14 +299,31 @@ class BookmarkParserService
             $category = $categoryQuery->first();
 
             if (! $category) {
-                $category = Category::create([
-                    'name' => $categoryName,
-                    'slug' => $this->generateSlug($categoryName),
-                    'is_active' => true,
-                    'sort_order' => $nextSortOrder++,
-                    'parent_id' => $catParentId,
-                ]);
-                $imported['categories']++;
+                // Slug generation is non-atomic (check-then-insert), and the
+                // categories.slug column has a UNIQUE index. Under concurrent
+                // imports two transactions can pick the same slug; the second
+                // insert throws QueryException. Retry once with a fresh slug
+                // before giving up so a collision doesn't roll back the whole
+                // import transaction.
+                for ($attempt = 1; $attempt <= 2; $attempt++) {
+                    try {
+                        $category = Category::create([
+                            'name' => $categoryName,
+                            'slug' => $this->generateSlug($categoryName),
+                            'is_active' => true,
+                            'sort_order' => $nextSortOrder++,
+                            'parent_id' => $catParentId,
+                        ]);
+                        $imported['categories']++;
+                        break;
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        // MySQL duplicate key: 1062. Only retry on this error;
+                        // anything else rethrows to abort the transaction.
+                        if ($attempt === 2 || ($e->errorInfo[1] ?? 0) !== 1062) {
+                            throw $e;
+                        }
+                    }
+                }
             }
 
             foreach ($group['bookmarks'] as $bookmark) {
