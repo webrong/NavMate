@@ -367,10 +367,14 @@ class InstallerService
      */
     protected function createAdmin(array $data): void
     {
+        $username = $data['admin_username'] ?? 'admin';
+
         AdminUser::updateOrCreate(
-            ['email' => $data['admin_email'] ?? 'admin@navigation.com'],
+            ['username' => $username],
             [
                 'name' => $data['admin_name'] ?? 'Admin',
+                'username' => $username,
+                'email' => $data['admin_email'] ?? ($username.'@localhost'),
                 'password' => $data['admin_password'],
                 'email_verified_at' => now(),
             ],

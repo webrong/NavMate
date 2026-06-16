@@ -20,12 +20,12 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'email' => 'required|email',
+            'username' => 'required|string|max:50',
             'password' => 'required',
         ]);
 
-        $email = $credentials['email'];
-        $throttleKey = 'admin_login:'.$email.':'.$request->ip();
+        $username = $credentials['username'];
+        $throttleKey = 'admin_login:'.$username.':'.$request->ip();
 
         // Check rate limit: max 5 attempts per minute
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
@@ -34,7 +34,7 @@ class AuthController extends Controller
             return response()->json(['message' => "登录尝试次数过多，请{$seconds}秒后再试"], 429);
         }
 
-        $admin = AdminUser::where('email', $email)->first();
+        $admin = AdminUser::where('username', $username)->first();
 
         if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
             RateLimiter::hit($throttleKey, 60);
@@ -49,7 +49,7 @@ class AuthController extends Controller
         Auth::guard('admin')->login($admin, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return response()->json(['message' => '登录成功', 'user' => $admin->only(['id', 'name', 'email'])]);
+        return response()->json(['message' => '登录成功', 'user' => $admin->only(['id', 'name', 'username'])]);
     }
 
     public function logout(Request $request): JsonResponse
@@ -65,7 +65,7 @@ class AuthController extends Controller
     {
         $admin = Auth::guard('admin')->user();
         if ($admin) {
-            return response()->json($admin->only(['id', 'name', 'email']));
+            return response()->json($admin->only(['id', 'name', 'username']));
         }
 
         return response()->json(null);

@@ -172,7 +172,7 @@ class InstallControllerTest extends TestCase
         // Spot-check the most important required fields.
         $response->assertJsonValidationErrors([
             'db_host', 'db_database', 'app_name', 'app_url',
-            'admin_name', 'admin_email', 'admin_password', 'cache_store',
+            'admin_name', 'admin_username', 'admin_password', 'cache_store',
         ]);
     }
 
@@ -222,7 +222,7 @@ class InstallControllerTest extends TestCase
             'app_name' => 'NavMate',
             'app_url' => 'https://nav.example.com',
             'admin_name' => 'Admin',
-            'admin_email' => 'admin@example.com',
+            'admin_username' => 'admin',
             'admin_password' => 'secure-password',
             'skip_mail' => true,
         ];

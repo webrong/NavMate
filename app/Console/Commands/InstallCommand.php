@@ -19,8 +19,8 @@ class InstallCommand extends Command
         {--redis-password= : Redis password}
         {--app-name=导航 : Application name}
         {--app-url=http://localhost : Application URL}
-        {--admin-name=Admin : Admin username}
-        {--admin-email= : Admin email}
+        {--admin-name=Admin : Admin display name}
+        {--admin-username=admin : Admin login username (letters, numbers, hyphens, underscores)}
         {--admin-password= : Admin password (min 8 chars). WARNING: passing via CLI exposes it in shell history & process list — prefer interactive prompt}
         {--seed : Seed sample navigation data}
         {--skip-mail : Skip mail configuration}';
@@ -39,12 +39,9 @@ class InstallCommand extends Command
         $this->info('Starting installation...');
 
         // Validate required fields
-        $adminEmail = $this->option('admin-email');
+        $adminUsername = $this->option('admin-username') ?: 'admin';
         $adminPassword = $this->option('admin-password');
 
-        if (! $adminEmail) {
-            $adminEmail = $this->ask('Admin email address');
-        }
         if (! $adminPassword) {
             $adminPassword = $this->secret('Admin password (min 8 chars)');
         }
@@ -85,7 +82,7 @@ class InstallCommand extends Command
             'app_name' => $this->option('app-name'),
             'app_url' => $this->option('app-url'),
             'admin_name' => $this->option('admin-name'),
-            'admin_email' => $adminEmail,
+            'admin_username' => $adminUsername,
             'admin_password' => $adminPassword,
             'seed_sample' => $this->option('seed'),
             'skip_mail' => $this->option('skip-mail'),
@@ -97,7 +94,7 @@ class InstallCommand extends Command
             $this->info('');
             $this->info('Installation complete!');
             $this->info("Admin login: {$data['app_url']}/admin/login");
-            $this->info("Email: {$adminEmail}");
+            $this->info("Username: {$adminUsername}");
 
             return 0;
         }

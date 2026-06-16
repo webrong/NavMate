@@ -33,10 +33,10 @@ export const useAdminAuthStore = defineStore('adminAuth', {
             }
         },
 
-        async login(email, password, remember = false) {
+        async login(username, password, remember = false) {
             this.loading = true;
             try {
-                const { data } = await request.post('/admin/login', { email, password, remember });
+                const { data } = await request.post('/admin/login', { username, password, remember });
                 this.user = data.user || data;
                 return { success: true };
             } catch (e) {

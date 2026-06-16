@@ -44,20 +44,19 @@
 
           <a-form :model="form" layout="vertical" @finish="handleLogin">
             <a-form-item
-              name="email"
+              name="username"
               :rules="[
-                { required: true, message: '请输入邮箱' },
-                { type: 'email', message: '邮箱格式不正确' },
+                { required: true, message: '请输入用户名' },
               ]"
             >
-              <template #label><span class="field-label">邮箱</span></template>
+              <template #label><span class="field-label">用户名</span></template>
               <a-input
-                v-model:value="form.email"
+                v-model:value="form.username"
                 size="large"
-                placeholder="请输入邮箱"
-                autocomplete="email"
+                placeholder="请输入用户名"
+                autocomplete="username"
               >
-                <template #prefix><MailOutlined class="field-icon" /></template>
+                <template #prefix><UserOutlined class="field-icon" /></template>
               </a-input>
             </a-form-item>
 
@@ -105,20 +104,20 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAdminAuthStore } from '../stores/adminAuth';
-import { GlobalOutlined, MailOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { GlobalOutlined, UserOutlined, LockOutlined } from '@ant-design/icons-vue';
 import { message } from 'antdv-next';
 
 const router = useRouter();
 const authStore = useAdminAuthStore();
 const loading = ref(false);
 const errorMsg = ref('');
-const form = reactive({ email: '', password: '', remember: false });
+const form = reactive({ username: '', password: '', remember: false });
 
 async function handleLogin() {
   loading.value = true;
   errorMsg.value = '';
   try {
-    const result = await authStore.login(form.email, form.password, form.remember);
+    const result = await authStore.login(form.username, form.password, form.remember);
     if (result.success !== false) {
       message.success('登录成功');
       router.push('/admin/dashboard').catch(() => {});

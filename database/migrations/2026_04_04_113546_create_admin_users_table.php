@@ -12,6 +12,7 @@ return new class extends Migration
         Schema::create('admin_users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('username')->unique();
             $table->string('email')->unique();
             $table->string('password');
             $table->timestamp('email_verified_at')->nullable();
@@ -24,7 +25,8 @@ return new class extends Migration
             $password = env('ADMIN_DEFAULT_PASSWORD', str()->random(16));
             AdminUser::create([
                 'name' => 'Admin',
-                'email' => env('ADMIN_DEFAULT_EMAIL', 'admin@navigation.com'),
+                'username' => 'admin',
+                'email' => env('ADMIN_DEFAULT_EMAIL', 'admin@localhost'),
                 'password' => $password,
                 'email_verified_at' => now(),
             ]);

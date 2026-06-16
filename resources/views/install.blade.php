@@ -441,7 +441,7 @@
                 </div>
                 <div class="form-group">
                     <label>管理员邮箱<span class="required">*</span></label>
-                    <input type="email" class="form-input" id="admin-email" placeholder="admin@example.com">
+                    <input type="text" class="form-input" id="admin-username" value="admin" placeholder="登录用户名（字母数字下划线）">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -774,7 +774,7 @@ const wizard = {
 
     validateStep4() {
         const name = document.getElementById('admin-name').value.trim();
-        const email = document.getElementById('admin-email').value.trim();
+        const username = document.getElementById('admin-username').value.trim();
         const pwd = document.getElementById('admin-password').value;
         const pwd2 = document.getElementById('admin-password-confirm').value;
 
@@ -817,7 +817,7 @@ const wizard = {
             app_name: document.getElementById('app-name').value.trim(),
             app_url: document.getElementById('app-url').value.trim(),
             admin_name: document.getElementById('admin-name').value.trim(),
-            admin_email: document.getElementById('admin-email').value.trim(),
+            admin_username: document.getElementById('admin-username').value.trim(),
             admin_password: document.getElementById('admin-password').value,
             seed_sample: document.getElementById('seed-sample').checked,
             skip_mail: document.getElementById('skip-mail').checked,

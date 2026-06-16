@@ -100,7 +100,7 @@ class InstallController extends Controller
             'app_name' => 'required|string|max:100',
             'app_url' => 'required|url|max:500',
             'admin_name' => 'required|string|max:100',
-            'admin_email' => 'required|email|max:255',
+            'admin_username' => 'required|string|min:3|max:50|alpha_dash',
             'admin_password' => 'required|string|min:8|max:255',
             'seed_sample' => 'nullable|boolean',
             'skip_mail' => 'nullable|boolean',

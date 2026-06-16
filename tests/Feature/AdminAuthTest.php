@@ -19,7 +19,7 @@ class AdminAuthTest extends TestCase
         parent::setUp();
         // The admin_users migration auto-creates one; we use the factory for a known password.
         $this->admin = AdminUser::factory()->create([
-            'email' => 'admin@example.com',
+            'username' => 'testadmin',
             'password' => 'correct-password',
         ]);
     }
@@ -28,26 +28,26 @@ class AdminAuthTest extends TestCase
     {
         // Throttle keys persist across tests within a process; clear them so the
         // next test class starts clean.
-        RateLimiter::clear('admin_login:admin@example.com:127.0.0.1');
+        RateLimiter::clear('admin_login:testadmin:127.0.0.1');
         parent::tearDown();
     }
 
     public function test_login_succeeds_with_correct_credentials(): void
     {
         $response = $this->postJson('/admin/login', [
-            'email' => 'admin@example.com',
+            'username' => 'testadmin',
             'password' => 'correct-password',
         ]);
 
         $response->assertOk();
-        $response->assertJsonStructure(['message', 'user' => ['id', 'name', 'email']]);
-        $response->assertJsonPath('user.email', 'admin@example.com');
+        $response->assertJsonStructure(['message', 'user' => ['id', 'name', 'username']]);
+        $response->assertJsonPath('user.username', 'testadmin');
     }
 
     public function test_login_fails_with_wrong_password(): void
     {
         $response = $this->postJson('/admin/login', [
-            'email' => 'admin@example.com',
+            'username' => 'testadmin',
             'password' => 'wrong-password',
         ]);
 
@@ -58,12 +58,12 @@ class AdminAuthTest extends TestCase
     public function test_login_validates_email_format(): void
     {
         $response = $this->postJson('/admin/login', [
-            'email' => 'not-an-email',
+            'username' => '',  // empty username should fail validation
             'password' => 'whatever',
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['email']);
+        $response->assertJsonValidationErrors(['username']);
     }
 
     public function test_login_throttles_after_five_failed_attempts(): void
@@ -71,37 +71,33 @@ class AdminAuthTest extends TestCase
         // Five failures should be allowed; the sixth should be blocked.
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/admin/login', [
-                'email' => 'admin@example.com',
+                'username' => 'testadmin',
                 'password' => 'wrong',
             ])->assertStatus(422);
         }
 
         $this->postJson('/admin/login', [
-            'email' => 'admin@example.com',
+            'username' => 'testadmin',
             'password' => 'wrong',
         ])->assertStatus(429);
     }
 
     public function test_successful_login_clears_throttle_counter(): void
     {
-        // Use a separate admin so this test's throttle state is isolated from
-        // the throttle-after-five-failures test (throttle keys are per-email+IP
-        // and persist in the array cache within the test process).
-        $admin = AdminUser::factory()->create([
-            'email' => 'clear-test@example.com',
-            'password' => 'correct-password',
-        ]);
+        // setUp already created \$this->admin (username 'testadmin'). Throttle
+        // keys are per-username+IP and persist in the array cache within the
+        // test process.
 
         // Burn two attempts, then succeed (which clears the counter).
         for ($i = 0; $i < 2; $i++) {
             $this->postJson('/admin/login', [
-                'email' => 'clear-test@example.com',
+                'username' => 'testadmin',
                 'password' => 'wrong',
             ])->assertStatus(422);
         }
 
         $this->postJson('/admin/login', [
-            'email' => 'clear-test@example.com',
+            'username' => 'testadmin',
             'password' => 'correct-password',
         ])->assertOk();
 
@@ -109,7 +105,7 @@ class AdminAuthTest extends TestCase
         // wrong attempt should start from zero and be rejected with 422, not
         // throttled with 429.
         $this->postJson('/admin/login', [
-            'email' => 'clear-test@example.com',
+            'username' => 'testadmin',
             'password' => 'wrong',
         ])->assertStatus(422);
     }
@@ -120,7 +116,7 @@ class AdminAuthTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('id', $this->admin->id);
-        $response->assertJsonPath('email', 'admin@example.com');
+        $response->assertJsonPath('username', 'testadmin');
     }
 
     public function test_me_is_unauthorized_for_guests(): void
