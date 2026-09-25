@@ -210,11 +210,20 @@ class BookmarkParserService
                     'samples' => array_slice($group['bookmarks'], 0, 3),
                 ];
             } else {
-                $existing = collect($preview)->first(fn ($p) => $p['folder'] === '未分类书签');
-                if ($existing) {
-                    $existing['count'] += $count;
-                    $existing['samples'] = array_slice(
-                        array_merge($existing['samples'], $group['bookmarks']), 0, 3
+                // collect()->first() returns a copy — mutating it never writes
+                // back into $preview, so the counts were silently lost
+                $existingIndex = null;
+                foreach ($preview as $i => $p) {
+                    if ($p['folder'] === '未分类书签') {
+                        $existingIndex = $i;
+                        break;
+                    }
+                }
+
+                if ($existingIndex !== null) {
+                    $preview[$existingIndex]['count'] += $count;
+                    $preview[$existingIndex]['samples'] = array_slice(
+                        array_merge($preview[$existingIndex]['samples'], $group['bookmarks']), 0, 3
                     );
                 } else {
                     $preview[] = [
@@ -283,6 +292,7 @@ class BookmarkParserService
         $skipDuplicate = $options['skip_duplicate'] ?? true;
         $parentCategoryId = $options['parent_category_id'] ?? null;
         $existingUrls = Site::pluck('url')->flip()->toArray();
+        $pathCache = [];
 
         // Pre-calculate next sort_order to avoid repeated MAX() queries
         $nextSortOrder = (Category::max('sort_order') ?? 0) + 1;
@@ -294,14 +304,16 @@ class BookmarkParserService
 
             $categoryName = $group['folder'] ?: '未分类书签';
 
-            // Resolve parent category
-            $catParentId = $parentCategoryId;
-            if ($group['parent_folder']) {
-                $parentCat = Category::where('name', $group['parent_folder'])->first();
-                if ($parentCat) {
-                    $catParentId = $parentCat->id;
-                }
-            }
+            // Resolve the parent chain by walking the "A / B" folder path —
+            // a name lookup would never match for nested folders (and could
+            // match a same-named category at the wrong depth)
+            $catParentId = $this->resolveOrCreatePath(
+                $group['parent_folder'],
+                $options['parent_category_id'] ?? null,
+                $pathCache,
+                $imported,
+                $nextSortOrder,
+            );
 
             // Look for existing category matching name AND parent
             $categoryQuery = Category::where('name', $categoryName);
@@ -313,31 +325,7 @@ class BookmarkParserService
             $category = $categoryQuery->first();
 
             if (! $category) {
-                // Slug generation is non-atomic (check-then-insert), and the
-                // categories.slug column has a UNIQUE index. Under concurrent
-                // imports two transactions can pick the same slug; the second
-                // insert throws QueryException. Retry once with a fresh slug
-                // before giving up so a collision doesn't roll back the whole
-                // import transaction.
-                for ($attempt = 1; $attempt <= 2; $attempt++) {
-                    try {
-                        $category = Category::create([
-                            'name' => $categoryName,
-                            'slug' => $this->generateSlug($categoryName),
-                            'is_active' => true,
-                            'sort_order' => $nextSortOrder++,
-                            'parent_id' => $catParentId,
-                        ]);
-                        $imported['categories']++;
-                        break;
-                    } catch (QueryException $e) {
-                        // MySQL duplicate key: 1062. Only retry on this error;
-                        // anything else rethrows to abort the transaction.
-                        if ($attempt === 2 || ($e->errorInfo[1] ?? 0) !== 1062) {
-                            throw $e;
-                        }
-                    }
-                }
+                $category = $this->createCategoryWithRetry($categoryName, $catParentId, $imported, $nextSortOrder);
             }
 
             foreach ($group['bookmarks'] as $bookmark) {
@@ -349,22 +337,111 @@ class BookmarkParserService
                     continue;
                 }
 
-                Site::create([
-                    'category_id' => $category->id,
-                    'title' => $bookmark['title'],
-                    'url' => $url,
-                    'description' => '',
-                    'is_public' => true,
-                    'is_active' => true,
-                    'sort_order' => 0,
-                ]);
+                try {
+                    Site::create([
+                        'category_id' => $category->id,
+                        'title' => $bookmark['title'],
+                        'url' => $url,
+                        'description' => '',
+                        'is_public' => true,
+                        'is_active' => true,
+                        'sort_order' => 0,
+                    ]);
 
-                $existingUrls[$url] = true;
-                $imported['sites']++;
+                    $existingUrls[$url] = true;
+                    $imported['sites']++;
+                } catch (QueryException $e) {
+                    // sites.url has a UNIQUE index — with skip_duplicate off a
+                    // duplicate must be counted and skipped, not roll back the
+                    // whole import transaction
+                    if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                        $imported['skipped']++;
+
+                        continue;
+                    }
+
+                    throw $e;
+                }
             }
         }
 
         return $imported;
+    }
+
+    /**
+     * Resolve a "A / B" folder path into a category id, creating any missing
+     * category along the way. $pathCache memoizes lookups within one import.
+     */
+    private function resolveOrCreatePath(?string $path, ?int $rootParentId, array &$pathCache, array &$imported, int &$nextSortOrder): ?int
+    {
+        if (empty($path)) {
+            return $rootParentId;
+        }
+
+        if (isset($pathCache[$path])) {
+            return $pathCache[$path];
+        }
+
+        $separator = strrpos($path, ' / ');
+        if ($separator === false) {
+            $parentPath = null;
+            $name = $path;
+        } else {
+            $parentPath = substr($path, 0, $separator);
+            $name = substr($path, $separator + 3);
+        }
+
+        $parentId = $this->resolveOrCreatePath($parentPath, $rootParentId, $pathCache, $imported, $nextSortOrder);
+
+        $categoryQuery = Category::where('name', $name);
+        if ($parentId) {
+            $categoryQuery->where('parent_id', $parentId);
+        } else {
+            $categoryQuery->whereNull('parent_id');
+        }
+        $category = $categoryQuery->first();
+
+        if (! $category) {
+            $category = $this->createCategoryWithRetry($name, $parentId, $imported, $nextSortOrder);
+        }
+
+        $pathCache[$path] = $category->id;
+
+        return $category->id;
+    }
+
+    /**
+     * Create a category, retrying once with a fresh slug on a slug collision.
+     *
+     * Slug generation is non-atomic (check-then-insert) and categories.slug
+     * has a UNIQUE index — under concurrent imports two transactions can pick
+     * the same slug, and the retry keeps one collision from rolling back the
+     * whole import transaction.
+     */
+    private function createCategoryWithRetry(string $name, ?int $parentId, array &$imported, int &$nextSortOrder): Category
+    {
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $category = Category::create([
+                    'name' => $name,
+                    'slug' => $this->generateSlug($name),
+                    'is_active' => true,
+                    'sort_order' => $nextSortOrder++,
+                    'parent_id' => $parentId,
+                ]);
+                $imported['categories']++;
+
+                return $category;
+            } catch (QueryException $e) {
+                // MySQL duplicate key: 1062. Only retry on this error;
+                // anything else rethrows to abort the transaction.
+                if ($attempt === 2 || ($e->errorInfo[1] ?? 0) !== 1062) {
+                    throw $e;
+                }
+            }
+        }
+
+        throw new \LogicException('unreachable');
     }
 
     private function cleanText(string $text): string
