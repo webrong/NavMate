@@ -151,8 +151,13 @@ jobs:
           # (UpdateService's extractAndReplace auto-detects this).
           (cd stage && zip -r "../${ZIP_NAME}" "${PKG_DIR}" -q)
 
+          # Publish the digest alongside the zip so UpdateService's
+          # download-phase SHA256 verification works end-to-end.
+          sha256sum "${ZIP_NAME}" > "${ZIP_NAME}.sha256"
+
           echo "zip_name=${ZIP_NAME}" >> $GITHUB_ENV
           echo "zip_path=$(pwd)/${ZIP_NAME}" >> $GITHUB_ENV
+          echo "sha256_path=$(pwd)/${ZIP_NAME}.sha256" >> $GITHUB_ENV
           echo "## Upgrade package built" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- File: \`${ZIP_NAME}\`" >> $GITHUB_STEP_SUMMARY
@@ -171,13 +176,13 @@ jobs:
           # just upload/replace the asset.
           if gh release view "${TAG}" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists — uploading asset."
-            gh release upload "${TAG}" "${{ env.zip_path }}" --clobber
+            gh release upload "${TAG}" "${{ env.zip_path }}" "${{ env.sha256_path }}" --clobber
           else
             echo "Creating release ${TAG}."
             gh release create "${TAG}" \
               --title "${TAG}" \
               --notes-file - \
-              "${{ env.zip_path }}" <<< "${{ steps.changelog.outputs.body }}"
+              "${{ env.zip_path }}" "${{ env.sha256_path }}" <<< "${{ steps.changelog.outputs.body }}"
           fi
 
       - name: Upload as artifact (manual dispatch only)
@@ -185,4 +190,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.zip_name }}
-          path: ${{ env.zip_path }}
+          path: |
+            ${{ env.zip_path }}
+            ${{ env.sha256_path }}

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\UpdateLog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Symfony\Component\Process\Process;
 use ZipArchive;
 
 class UpdateService
@@ -218,12 +219,34 @@ class UpdateService
             }
         }
 
+        // Look for a published "<zip>.sha256" digest so the download-phase
+        // integrity check is actually enforceable
+        $sha256 = null;
+        if ($downloadUrl) {
+            $zipName = basename($downloadUrl);
+            foreach ($release['assets'] ?? [] as $asset) {
+                if ($asset['name'] === $zipName.'.sha256') {
+                    try {
+                        $digestResponse = $this->httpClient(15)->get($asset['browser_download_url']);
+                        if ($digestResponse->successful()) {
+                            // File format: "<64 hex chars>  <filename>"
+                            $sha256 = strtok(trim($digestResponse->body()), " \t\r\n") ?: null;
+                        }
+                    } catch (\Throwable) {
+                        // Digest unavailable — proceed without a checksum
+                    }
+                    break;
+                }
+            }
+        }
+
         return [
             'has_update' => $hasUpdate,
             'current_version' => $currentVersion,
             'latest_version' => $latestVersion,
             'changelog' => $release['body'] ?? '',
             'download_url' => $downloadUrl,
+            'sha256' => $sha256,
             'release_url' => $release['html_url'] ?? '',
             'published_at' => $release['published_at'] ?? '',
         ];
@@ -263,6 +286,7 @@ class UpdateService
             'latest_version' => $latestVersion,
             'changelog' => $data['changelog'] ?? $data['description'] ?? '',
             'download_url' => $data['download_url'] ?? $data['archive'] ?? '',
+            'sha256' => $data['sha256'] ?? null,
             'published_at' => $data['published_at'] ?? '',
         ];
     }
@@ -273,7 +297,8 @@ class UpdateService
     public function update(?callable $onProgress = null): array
     {
         $lockFile = storage_path('framework/update.lock');
-        $lockHandle = fopen($lockFile, 'w+');
+        // 'c' creates the lock file if missing without truncating or reading
+        $lockHandle = fopen($lockFile, 'c');
         if (! $lockHandle || ! flock($lockHandle, LOCK_EX | LOCK_NB)) {
             if ($lockHandle) {
                 fclose($lockHandle);
@@ -364,7 +389,8 @@ class UpdateService
             $zipPath = $this->downloadRelease($downloadUrl);
 
             // 5.5 Verify integrity (SHA256 checksum) if provided by update source
-            if (! empty($updateInfo['sha256'])) {
+            $expectedHash = $updateInfo['sha256'] ?? null;
+            if ($expectedHash !== null && preg_match('/^[a-f0-9]{64}$/i', $expectedHash)) {
                 $actualHash = hash_file('sha256', $zipPath);
                 if (! hash_equals($updateInfo['sha256'], $actualHash)) {
                     @unlink($zipPath);
@@ -379,13 +405,15 @@ class UpdateService
             $notify(6, '解压并替换文件', 'running');
             $this->extractAndReplace($zipPath);
 
-            // 7. Update version
-            $notify(7, '更新版本号', 'running');
-            $this->setCurrentVersion($targetVersion);
-
-            // 8. Run migrations (via Migrator, no Artisan::call)
-            $notify(8, '运行数据库迁移', 'running');
+            // 7. Run migrations BEFORE stamping the version — a failed
+            //    migration must leave the old version marker intact so
+            //    checkForUpdate still offers the retry
+            $notify(7, '运行数据库迁移', 'running');
             $this->runMigrations();
+
+            // 8. Update version (only after migrations succeeded)
+            $notify(8, '更新版本号', 'running');
+            $this->setCurrentVersion($targetVersion);
 
             // 9. Clear cache and disable maintenance mode
             $notify(9, '清除缓存并关闭维护模式', 'running');
@@ -418,6 +446,14 @@ class UpdateService
                 try {
                     $this->restoreBackup($backupPath);
                     $log .= "已从备份恢复\n";
+                    // The old code is back — roll the version marker back so
+                    // checkForUpdate can offer the same upgrade again.
+                    try {
+                        $this->setCurrentVersion($currentVersion);
+                        $log .= "版本号已回滚为 {$currentVersion}\n";
+                    } catch (\Throwable $versionError) {
+                        $log .= '版本号回滚失败: '.$versionError->getMessage()."\n";
+                    }
                 } catch (\Throwable $restoreError) {
                     $log .= '备份恢复失败: '.$restoreError->getMessage()."\n";
                 }
@@ -521,7 +557,21 @@ class UpdateService
             mkdir($backupDir, 0755, true);
         }
 
-        $mysqlDump = exec(DIRECTORY_SEPARATOR === '\\' ? 'where mysqldump 2>NUL' : 'which mysqldump 2>/dev/null');
+        // Locate mysqldump by scanning PATH — no shell out to where/which
+        $mysqlDump = null;
+        $execNames = DIRECTORY_SEPARATOR === '\\' ? ['mysqldump.exe', 'mysqldump.bat'] : ['mysqldump'];
+        foreach (explode(PATH_SEPARATOR, getenv('PATH') ?: '') as $dir) {
+            if ($dir === '') {
+                continue;
+            }
+            foreach ($execNames as $name) {
+                $candidate = $dir.DIRECTORY_SEPARATOR.$name;
+                if (is_file($candidate)) {
+                    $mysqlDump = $candidate;
+                    break 2;
+                }
+            }
+        }
         if (empty($mysqlDump)) {
             return null;
         }
@@ -533,39 +583,24 @@ class UpdateService
         $dbPort = config('database.connections.mysql.port', 3306);
 
         $backupFile = $backupDir.'/db-'.date('YmdHis').'.sql';
-        $command = sprintf(
-            '%s -h%s -P%s -u%s %s > %s 2>/dev/null',
-            escapeshellcmd(trim($mysqlDump)),
-            escapeshellarg($dbHost),
-            escapeshellarg((string) $dbPort),
-            escapeshellarg($dbUser),
-            escapeshellarg($dbName),
-            escapeshellarg($backupFile)
-        );
+        // Array command form: proc_open executes it directly without a
+        // shell, so no quoting and no injection surface (works cross-platform;
+        // PHP escapes the elements itself on Windows)
+        $command = [
+            $mysqlDump,
+            '-h'.$dbHost,
+            '-P'.(string) $dbPort,
+            '-u'.$dbUser,
+            '--result-file='.$backupFile,
+            $dbName,
+        ];
 
         // Pass password via MYSQL_PWD env var to avoid exposure in process list
-        $env = null;
-        if ($dbPass) {
-            $env = array_merge(getenv(), ['MYSQL_PWD' => $dbPass]);
-        }
+        $process = new Process($command, null, $dbPass ? ['MYSQL_PWD' => $dbPass] : null);
+        $process->setTimeout(null);
+        $process->run();
 
-        $process = proc_open($command, [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ], $pipes, null, $env);
-
-        if (! is_resource($process)) {
-            @unlink($backupFile);
-
-            return null;
-        }
-
-        fclose($pipes[0]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $returnCode = proc_close($process);
-        if ($returnCode === 0 && file_exists($backupFile)) {
+        if ($process->isSuccessful() && file_exists($backupFile)) {
             return $backupFile;
         }
         @unlink($backupFile);
@@ -826,29 +861,31 @@ class UpdateService
      */
     protected function extractAndReplace(string $zipPath): void
     {
+        // Whitelist extraction: validate every entry up front, then extract
+        // exactly those names — nothing unreviewed touches the filesystem
         $zip = new ZipArchive;
         if ($zip->open($zipPath) !== true) {
             throw new \RuntimeException('无法打开下载的压缩包');
         }
 
-        // Validate ZIP contents: block path traversal and absolute paths
+        $allowed = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if (str_contains($name, '..') || str_starts_with($name, '/')) {
+            // Positive charset whitelist (relative paths only) — rejects
+            // traversal, backslashes, drive letters and absolute paths
+            if ($name === false || $name === '' || ! preg_match('#^[A-Za-z0-9_.\-/]+$#', $name) || str_starts_with($name, '/') || preg_match('#^[A-Za-z]:#', $name) || str_contains($name, '..')) {
                 $zip->close();
                 throw new \RuntimeException('压缩包包含非法路径: '.$name);
             }
+            $allowed[] = $name;
         }
-        $zip->close();
 
-        // Re-open and extract
-        $zip = new ZipArchive;
-        $zip->open($zipPath);
         $tmpDir = storage_path('app/tmp/extract-'.uniqid('', true));
         if (! mkdir($tmpDir, 0755, true)) {
+            $zip->close();
             throw new \RuntimeException('无法创建临时目录');
         }
-        if (! $zip->extractTo($tmpDir)) {
+        if (! $zip->extractTo($tmpDir, $allowed)) {
             $zip->close();
             $this->recursiveDelete($tmpDir);
             throw new \RuntimeException('压缩包解压失败');
@@ -929,11 +966,48 @@ class UpdateService
             throw new \RuntimeException('无法打开备份文件');
         }
 
+        // Whitelist extraction (same rule as the upgrade package): the
+        // backup is self-generated, but nothing unreviewed touches disk
+        $allowed = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if ($name === false || $name === '' || ! preg_match('#^[A-Za-z0-9_.\-/]+$#', $name) || str_starts_with($name, '/') || preg_match('#^[A-Za-z]:#', $name) || str_contains($name, '..')) {
+                $zip->close();
+                throw new \RuntimeException('备份包含非法路径: '.$name);
+            }
+            $allowed[] = $name;
+        }
+
         // Extract to temp dir first, then selectively copy back
         $tmpDir = storage_path('app/tmp/restore-'.uniqid('', true));
-        mkdir($tmpDir, 0755, true);
-        $zip->extractTo($tmpDir);
+        if (! mkdir($tmpDir, 0755, true) || ! $zip->extractTo($tmpDir, $allowed)) {
+            $zip->close();
+            $this->recursiveDelete($tmpDir);
+            throw new \RuntimeException('备份解压失败');
+        }
         $zip->close();
+
+        // The backup contains only code (vendor/node_modules/.git/storage are
+        // excluded), so remove the existing copy of each backed-up top-level
+        // directory before copying back. A plain overlay would leave files
+        // that only exist in the new version behind — e.g. new migration
+        // files would still run on the next artisan migrate.
+        $preserve = ['.env', 'storage'];
+        foreach (scandir($tmpDir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || in_array($entry, $preserve, true)) {
+                continue;
+            }
+            // Top-level names only, same positive whitelist as above
+            if (! preg_match('/^[A-Za-z0-9_.-]+$/', $entry)) {
+                continue;
+            }
+            $target = base_path($entry);
+            if (is_dir($target)) {
+                $this->recursiveDelete($target);
+            } elseif (file_exists($target)) {
+                @unlink($target);
+            }
+        }
 
         $this->recursiveCopy($tmpDir, base_path(), ['.env', 'storage']);
         $this->recursiveDelete($tmpDir);

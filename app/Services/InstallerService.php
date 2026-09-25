@@ -99,9 +99,16 @@ class InstallerService
     {
         try {
             $dbName = $data['db_database'] ?? '';
+            $dbHost = $data['db_host'] ?? '127.0.0.1';
+            // The host goes straight into the PDO DSN — a crafted value like
+            // "x;unix_socket=/path" would inject extra DSN parts, so only
+            // plain hostnames/IPs are accepted
+            if (! preg_match('/^[A-Za-z0-9._-]+$/', $dbHost)) {
+                return ['success' => false, 'message' => '数据库主机格式无效（仅支持主机名/IP）'];
+            }
             $dsn = sprintf(
                 'mysql:host=%s;port=%s',
-                $data['db_host'] ?? '127.0.0.1',
+                $dbHost,
                 $data['db_port'] ?? 3306
             );
             $pdo = new \PDO($dsn, $data['db_username'] ?? '', $data['db_password'] ?? '', [
@@ -109,8 +116,13 @@ class InstallerService
                 \PDO::ATTR_TIMEOUT => 5,
             ]);
             if ($dbName) {
-                $pdo->exec('CREATE DATABASE IF NOT EXISTS `'.str_replace('`', '``', $dbName).'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-                $pdo->exec('USE `'.str_replace('`', '``', $dbName).'`');
+                // DDL identifiers cannot be parameterized — restrict the name
+                // to a backtick-free charset before it reaches the SQL below
+                if (! preg_match('/^[A-Za-z0-9_-]+$/', $dbName)) {
+                    return ['success' => false, 'message' => '数据库名仅支持字母、数字、下划线和连字符'];
+                }
+                $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                $pdo->exec("USE `{$dbName}`");
             }
 
             $result = ['success' => true, 'message' => '数据库连接成功'];
@@ -346,9 +358,11 @@ class InstallerService
         }
 
         foreach ($replacements as $key => $value) {
-            $escaped = (str_contains($value, ' ') || str_contains($value, '#') || preg_match('/[\s\'"\\\\]/', $value))
-                ? '"'.addslashes($value).'"'
-                : $value;
+            // Dotenv double-quoted escaping: backslash, double quote and $
+            // must be escaped ($ would trigger variable interpolation).
+            // Unlike addslashes this leaves single quotes literal, so
+            // passwords containing ' or $ survive round-trips.
+            $escaped = '"'.str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $value).'"';
 
             if (preg_match("/^{$key}=/m", $content)) {
                 $content = preg_replace("/^{$key}=.*/m", "{$key}={$escaped}", $content);
@@ -417,7 +431,7 @@ class InstallerService
     {
         file_put_contents(storage_path('app/installed'), json_encode([
             'installed_at' => now()->toIso8601String(),
-            'version' => '1.0.0',
+            'version' => config('app.version', '1.0.0'),
         ], JSON_PRETTY_PRINT));
     }
 

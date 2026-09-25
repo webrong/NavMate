@@ -146,10 +146,11 @@ const updateLogs = ref([]);
 const logsLoading = ref(false);
 const expandedKeys = ref([]);
 
-// Upgrade progress state
+// Upgrade progress state (steps 7/8 must stay in sync with UpdateService:
+// migrations run BEFORE the version marker is stamped)
 const STEP_LABELS = [
   '检查更新', '开启维护模式', '备份当前文件', '备份数据库',
-  '下载新版本', '解压并替换文件', '更新版本号', '运行数据库迁移',
+  '下载新版本', '解压并替换文件', '运行数据库迁移', '更新版本号',
   '清除缓存并关闭维护模式',
 ];
 const steps = ref(STEP_LABELS.map((label, i) => ({ n: i + 1, label, status: 'pending' })));
@@ -206,7 +207,7 @@ async function checkUpdate() {
     const { data } = await request.get('/admin/api/system/check-update');
     updateInfo.value = data;
   } catch {
-    message.error('检查更新失败');
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     checking.value = false;
   }
