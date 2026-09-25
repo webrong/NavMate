@@ -2,36 +2,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
 {
+    public const SITEMAP_CACHE_KEY = 'seo:sitemap';
+
     /**
-     * Generate sitemap.xml dynamically
+     * Generate sitemap.xml dynamically.
+     *
+     * Cached — crawlers hit this repeatedly and the content only changes when
+     * content changes (invalidated in ClearsDashboardCache).
      */
     public function sitemap(): Response
     {
-        $categories = Category::active()
-            ->ordered()
-            ->with(['children' => function ($query) {
-                $query->active();
-            }])
-            ->root()
-            ->get();
+        $xml = Cache::remember(self::SITEMAP_CACHE_KEY, 3600, function () {
+            $siteUrl = config('app.url');
 
-        $siteUrl = config('app.url');
+            $maxUpdated = Site::max('updated_at');
+            $lastModified = $maxUpdated
+                ? (new Carbon($maxUpdated))->toIso8601String()
+                : now()->toIso8601String();
 
-        $maxUpdated = Site::max('updated_at');
-        $lastModified = $maxUpdated
-            ? (new Carbon($maxUpdated))->toIso8601String()
-            : now()->toIso8601String();
+            // Only real, crawlable URLs are submitted — the SPA category views
+            // are hash anchors on the homepage, which sitemap parsers ignore
+            return response()
+                ->view('seo.sitemap', compact('siteUrl', 'lastModified'))
+                ->render();
+        });
 
-        return response()
-            ->view('seo.sitemap', compact('categories', 'siteUrl', 'lastModified'))
-            ->header('Content-Type', 'application/xml');
+        return response($xml, 200, ['Content-Type' => 'application/xml']);
     }
 
     /**

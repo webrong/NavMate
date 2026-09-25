@@ -91,6 +91,7 @@ class PrerenderForBots
         }
 
         $siteName = $allSettings->get('site_name') ?: config('app.name', '导航');
+        $isHome = $request->path() === '/';
         $siteDescription = $allSettings->get('site_description') ?: ($siteName.' - 现代化网址导航系统');
         $siteKeywords = $allSettings->get('site_keywords') ?: ($siteName.',网址导航,导航站,NavMate');
         $siteLogo = $allSettings->get('site_logo') ?: asset('static/image/logo.svg');
@@ -108,6 +109,10 @@ class PrerenderForBots
             'siteUrl',
             'footerText',
             'icpNumber',
+            // Only the homepage gets a canonical — every path renders the same
+            // prerender content, and pointing them all at "/" would declare
+            // the whole site a duplicate of the homepage
+            'isHome',
         ));
     }
 }

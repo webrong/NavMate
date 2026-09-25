@@ -19,13 +19,4 @@
         <changefreq>monthly</changefreq>
         <priority>0.3</priority>
     </url>
-
-    @foreach($categories as $category)
-    <url>
-        <loc>{{ $siteUrl }}/#category-{{ $category->id }}</loc>
-        <lastmod>{{ $category->updated_at?->toIso8601String() ?? $category->created_at?->toIso8601String() ?? $lastModified }}</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.8</priority>
-    </url>
-    @endforeach
 </urlset>

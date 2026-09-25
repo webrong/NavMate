@@ -7,7 +7,9 @@
     <meta name="description" content="{{ $siteDescription }}" />
     <meta name="keywords" content="{{ $siteKeywords }}" />
     <meta name="robots" content="index, follow" />
+    @if(!empty($isHome))
     <link rel="canonical" href="{{ $siteUrl }}/" />
+    @endif
 
     <link rel="shortcut icon" href="{{ $siteLogo }}">
     <link rel="apple-touch-icon" href="{{ $siteLogo }}">
@@ -55,7 +57,7 @@
             "query-input" => "required name=search_term_string",
         ],
     ];
-    echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
     @endphp
     </script>
 

@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Http\Controllers\SeoController;
 use App\Services\CategoryTreeService;
 use Illuminate\Support\Facades\Cache;
 
@@ -23,5 +24,7 @@ trait ClearsDashboardCache
         Cache::forget('dashboard:top');
         // Public category tree (shared by /api/categories and bot prerender)
         Cache::forget(CategoryTreeService::TREE_CACHE_KEY);
+        // sitemap.xml lastmod/values change with content
+        Cache::forget(SeoController::SITEMAP_CACHE_KEY);
     }
 }

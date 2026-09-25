@@ -9,7 +9,9 @@
         $siteKeywords = $settings['site_keywords'] ?? ($siteName . ',网址导航,导航站,NavMate');
         $siteLogo = $settings['site_logo'] ?? asset('static/image/logo.svg');
         $siteUrl = config('app.url');
-        $currentUrl = $siteUrl . request()->getRequestUri();
+        // Path only — getRequestUri() would fold ?q=...&utm_... into the
+        // canonical and dilute it
+        $currentUrl = $siteUrl . request()->getPathInfo();
     @endphp
 
     <title>{{ $siteName }}</title>
@@ -67,7 +69,7 @@
             "query-input" => "required name=search_term_string",
         ],
     ];
-    echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
     @endphp
     </script>
 
