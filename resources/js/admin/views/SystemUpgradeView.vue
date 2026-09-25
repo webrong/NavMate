@@ -263,9 +263,11 @@ async function executeUpdate() {
 
   abortController = new AbortController();
 
-  // If the backend stops sending events but keeps the connection open, the
-  // UI would hang on "升级中" forever — abort after an idle window instead.
-  const IDLE_TIMEOUT_MS = 60_000;
+    // If the backend stops sending events but keeps the connection open, the
+    // UI would hang on "升级中" forever — abort after an idle window instead.
+    // The download step streams progress keepalives (~15 s apart), so this
+    // only fires on genuinely dead streams.
+    const IDLE_TIMEOUT_MS = 120_000;
 
   try {
     const response = await fetch('/admin/api/system/update', {
@@ -304,7 +306,7 @@ async function executeUpdate() {
         new Promise((_, reject) => {
           idleTimer = setTimeout(() => {
             abortController?.abort();
-            reject(new Error('升级流超过 60 秒没有新事件，已中断。服务端进程可能仍在执行，请稍后查看升级历史'));
+              reject(new Error('升级流超过 120 秒没有新事件，已中断。服务端进程可能仍在执行，请稍后查看升级历史'));
           }, IDLE_TIMEOUT_MS);
         }),
       ]);

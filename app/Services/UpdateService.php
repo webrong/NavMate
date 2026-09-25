@@ -386,7 +386,12 @@ class UpdateService
 
             // 5. Download release
             $notify(5, "下载新版本 {$targetVersion}", 'running');
-            $zipPath = $this->downloadRelease($downloadUrl);
+            // Stream download progress as 'running' events — without them the
+            // UI sits frozen at this step for the whole (potentially minutes
+            // long, retried) transfer and looks hung
+            $zipPath = $this->downloadRelease($downloadUrl, function (string $message) use ($notify): void {
+                $notify(5, $message, 'running');
+            });
 
             // 5.5 Verify integrity (SHA256 checksum) if provided by update source
             $expectedHash = $updateInfo['sha256'] ?? null;
@@ -677,7 +682,7 @@ class UpdateService
      * before the file finishes. Each retry continues from the bytes already on
      * disk, so a flaky connection can still complete over several attempts.
      */
-    protected function downloadRelease(string $url): string
+    protected function downloadRelease(string $url, ?callable $onProgress = null): string
     {
         $tmpDir = storage_path('app/tmp');
         if (! is_dir($tmpDir)) {
@@ -692,6 +697,34 @@ class UpdateService
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $resumeFrom = is_file($zipPath) ? (@filesize($zipPath) ?: 0) : 0;
+            $lastReportedAt = microtime(true);
+            $lastReportedBucket = -1;
+
+            // Throttled progress reporter: one event per ~10% bucket plus a
+            // 15 s keepalive (so the SSE idle guard knows a slow transfer is
+            // still alive). $resumeFrom counts toward the total on resumed
+            // attempts.
+            $reportProgress = function (int $downloaded, int $rangeTotal) use ($onProgress, $resumeFrom, &$lastReportedAt, &$lastReportedBucket): void {
+                if (! $onProgress) {
+                    return;
+                }
+
+                $done = $resumeFrom + $downloaded;
+                $total = $rangeTotal > 0 ? $resumeFrom + $rangeTotal : null;
+                $pct = $total ? (int) floor($done / $total * 100) : null;
+                $bucket = $pct === null ? null : (int) floor($pct / 10);
+
+                $now = microtime(true);
+                if ($bucket !== null && $bucket === $lastReportedBucket && ($now - $lastReportedAt) < 15) {
+                    return;
+                }
+                $lastReportedAt = $now;
+                $lastReportedBucket = $bucket;
+
+                $onProgress($total
+                    ? '已下载 '.$this->formatMegabytes($done).' / '.$this->formatMegabytes($total).'（'.$pct.'%）'
+                    : '已下载 '.$this->formatMegabytes($done));
+            };
 
             // When resuming we send a Range header and expect a 206 response.
             // If the server ignores Range and returns a full 200 instead, the
@@ -718,6 +751,12 @@ class UpdateService
                 CURLOPT_CONNECTTIMEOUT => $connectTimeout,
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_NOPROGRESS => false,
+                CURLOPT_XFERINFOFUNCTION => function ($ch, int $totalBytes, int $downloadedBytes) use ($reportProgress): int {
+                    $reportProgress($downloadedBytes, $totalBytes);
+
+                    return 0; // continue the transfer
+                },
                 CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$headers, &$totalSize, &$isPartial) {
                     $headers[] = $header;
                     // Content-Range: bytes 5412992-12059402/12059403
@@ -854,6 +893,14 @@ class UpdateService
         $test->close();
 
         return $zipPath;
+    }
+
+    /**
+     * Format a byte count as a compact MB string for progress messages
+     */
+    private function formatMegabytes(int $bytes): string
+    {
+        return round($bytes / 1024 / 1024, 1).' MB';
     }
 
     /**
