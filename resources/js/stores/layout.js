@@ -20,12 +20,10 @@ export const useLayoutStore = defineStore('layout', {
         },
 
         async saveLayout(layoutData) {
-            try {
-                await request.put('/api/user/layout', { layout_data: layoutData });
-                this.data = layoutData;
-            } catch {
-                // ignore
-            }
+            // No catch here: callers must be able to tell success from
+            // failure (the interceptor already toasts the error)
+            await request.put('/api/user/layout', { layout_data: layoutData });
+            this.data = layoutData;
         },
 
         clear() {

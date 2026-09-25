@@ -42,6 +42,10 @@ const saved = ref(false);
 
 onMounted(async () => {
   await layoutStore.fetchLayout();
+  // Make sure the category tree is loaded before deriving the list — on a
+  // direct visit it may still be in flight. fetchCategories has a TTL
+  // cache, so this dedupes with App.vue's fetch instead of duplicating it.
+  await categoryStore.fetchCategories();
   const layoutMap = {};
   layoutStore.data.forEach((item) => {
     layoutMap[item.category_id] = item;
@@ -76,9 +80,13 @@ async function saveLayout() {
     visible: cat.visible,
     sort_order: index,
   }));
-  await layoutStore.saveLayout(layoutData);
-  saved.value = true;
-  setTimeout(() => { saved.value = false; }, 2000);
+  try {
+    await layoutStore.saveLayout(layoutData);
+    saved.value = true;
+    setTimeout(() => { saved.value = false; }, 2000);
+  } catch {
+    // 失败提示由 request 拦截器统一弹出，这里不再显示“已保存”
+  }
 }
 
 function resetLayout() {

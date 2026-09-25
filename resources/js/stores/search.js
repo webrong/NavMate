@@ -54,6 +54,9 @@ export const useSearchStore = defineStore('search', {
         activeEngine: 'site',
         searchResults: [],
         filtering: false,
+        // True once a site search has run — lets the results panel (and its
+        // empty state) stay visible even when zero results come back
+        searched: false,
     }),
 
     getters: {
@@ -83,6 +86,7 @@ export const useSearchStore = defineStore('search', {
             this.activeEngine = engines[0]?.id || 'site';
             this.keyword = '';
             this.searchResults = [];
+            this.searched = false;
         },
 
         setEngine(engineId) {
@@ -98,6 +102,7 @@ export const useSearchStore = defineStore('search', {
 
             if (engine.type === 'site') {
                 this.filtering = true;
+                this.searched = true;
                 this.searchResults = [];
                 try {
                     const { data } = await request.get('/api/search', { params: { q: keyword } });
@@ -110,6 +115,12 @@ export const useSearchStore = defineStore('search', {
             } else if (engine.url) {
                 window.open(engine.url + encodeURIComponent(keyword), '_blank');
             }
+        },
+
+        clearSearch() {
+            this.searchResults = [];
+            this.keyword = '';
+            this.searched = false;
         },
     },
 });

@@ -8,22 +8,30 @@ export const useAdminSitesStore = defineStore('adminSites', {
         categories: [],
         loading: false,
         currentFilters: { keyword: '', category_id: undefined, is_public: undefined, page: 1, limit: 15 },
+        _reqSeq: 0,
     }),
 
     actions: {
         async fetchList(params = {}) {
+            const seq = ++this._reqSeq;
             this.loading = true;
             try {
                 const query = { ...this.currentFilters, ...params };
                 this.currentFilters = query;
                 const { data } = await request.get('/admin/api/sites', { params: query });
+                // A newer request superseded this one — don't apply stale
+                // results (fast pagination/search would otherwise flicker
+                // back to the old page)
+                if (seq !== this._reqSeq) return;
                 this.items = data.data || [];
                 this.total = data.total || 0;
             } catch {
                 // Error toast already shown by request.js interceptor.
                 // Swallow to prevent unhandled rejection in the view.
             } finally {
-                this.loading = false;
+                if (seq === this._reqSeq) {
+                    this.loading = false;
+                }
             }
         },
 

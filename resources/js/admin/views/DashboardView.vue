@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard">
     <!-- Stat cards: 3 columns × 2 rows -->
-    <a-row :gutter="[16, 16]" class="stat-row">
+    <a-row v-if="!dashboardStore.loading" :gutter="[16, 16]" class="stat-row">
       <a-col :xs="24" :sm="12" :lg="8" v-for="item in statCards" :key="item.label">
         <div class="stat-card admin-card admin-card-hover">
           <div class="stat-card-body">
@@ -57,7 +57,7 @@
                     v-if="record.favicon_url"
                     :src="record.favicon_url"
                     class="site-favicon"
-                    alt=""
+                    :alt="record.title"
                     loading="lazy"
                     referrerpolicy="no-referrer"
                     @error="onFaviconError"
@@ -96,7 +96,7 @@
                     v-if="record.favicon_url"
                     :src="record.favicon_url"
                     class="site-favicon"
-                    alt=""
+                    :alt="record.title"
                     loading="lazy"
                     referrerpolicy="no-referrer"
                     @error="onFaviconError"

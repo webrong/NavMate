@@ -113,10 +113,9 @@ const loading = computed(() => store.loading);
 const error = computed(() => store.error);
 const searchResults = computed(() => searchStore.searchResults);
 const filtering = computed(() => searchStore.filtering);
-const hasSearch = computed(() => searchStore.searchResults.length > 0 || searchStore.filtering);
+const hasSearch = computed(() => searchStore.searched || searchStore.filtering);
 
 function clearSearch() {
-  searchStore.searchResults = [];
-  searchStore.keyword = '';
+  searchStore.clearSearch();
 }
 </script>

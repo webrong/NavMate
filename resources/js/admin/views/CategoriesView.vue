@@ -17,7 +17,8 @@
         :columns="columns"
         :loading="store.loading"
         :pagination="false"
-        :defaultExpandAllRows="true"
+        :expandedRowKeys="expandedRowKeys"
+        @expandedRowsChange="onExpandedRowsChange"
         row-key="id"
         size="middle"
       >
@@ -91,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { message } from 'antdv-next';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 import PageToolbar from '../components/PageToolbar.vue';
@@ -168,6 +169,28 @@ function onNameChange() {
 onMounted(() => {
   store.fetchList();
 });
+
+// defaultExpandAllRows only applies to the first render and items arrive
+// async — keep every parent row expanded whenever a fresh tree comes in
+const expandedRowKeys = ref([]);
+
+function collectParentKeys(items) {
+  const keys = [];
+  for (const item of items) {
+    if (item.children?.length) {
+      keys.push(item.id, ...collectParentKeys(item.children));
+    }
+  }
+  return keys;
+}
+
+watch(() => store.items, (items) => {
+  expandedRowKeys.value = collectParentKeys(items);
+});
+
+function onExpandedRowsChange(keys) {
+  expandedRowKeys.value = [...keys];
+}
 
 function handleSearch(val) {
   store.fetchList({ keyword: val });

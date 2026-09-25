@@ -23,10 +23,13 @@ export const useAuthStore = defineStore('auth', {
                 try {
                     const { data } = await request.get('/api/user');
                     this.user = data && data.id ? data : null;
+                    this.initialized = true;
                 } catch {
                     this.user = null;
-                } finally {
-                    this.initialized = true;
+                    // A network failure is not "logged out" — leave
+                    // initialized false and drop the cached promise so the
+                    // next init() (e.g. next navigation) retries.
+                    this._initPromise = null;
                 }
             })();
             return this._initPromise;
