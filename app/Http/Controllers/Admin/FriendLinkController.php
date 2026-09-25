@@ -27,6 +27,10 @@ class FriendLinkController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        // NOT NULL columns (sort_order/is_active) get their DB defaults on
+        // create; logo is nullable so a null still clears it
+        $data = array_filter($data, fn ($v) => ! is_null($v));
+
         $link = FriendLink::create($data);
 
         return response()->json(['code' => 0, 'msg' => '添加成功', 'data' => $link], 201);
@@ -41,6 +45,12 @@ class FriendLinkController extends Controller
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
+
+        // Explicit nulls on NOT NULL columns would violate strict mode —
+        // only logo is nullable, so null there still clears it
+        $data = collect($data)->reject(
+            fn ($v, $key) => is_null($v) && $key !== 'logo',
+        )->all();
 
         $friendLink->update($data);
 

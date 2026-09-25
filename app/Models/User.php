@@ -29,8 +29,10 @@ class User extends Authenticatable
 
     protected function avatar(): Attribute
     {
+        // Uploaded to the 'public' disk (AuthController) — resolve the URL
+        // from that same disk instead of relying on the default disk
         return Attribute::make(
-            get: fn ($value) => $value ? Storage::url($value) : null,
+            get: fn ($value) => $value ? Storage::disk('public')->url($value) : null,
         );
     }
 

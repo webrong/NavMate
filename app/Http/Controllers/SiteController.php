@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClickLog;
 use App\Models\Site;
 use App\Services\UrlFetcherService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,9 +26,9 @@ class SiteController extends Controller
     public function quickAdd(Request $request): JsonResponse
     {
         $request->validate([
-            'url' => 'required|url|max:2048',
+            'url' => 'required|url|max:255|unique:sites,url',
             'title' => 'nullable|string|max:255',
-            'favicon_url' => 'nullable|url|max:2048',
+            'favicon_url' => 'nullable|url|max:255',
             'category_id' => 'required|exists:categories,id',
         ]);
 
@@ -37,14 +38,24 @@ class SiteController extends Controller
             $visitorToken = Str::random(32);
         }
 
-        $site = Site::create([
-            'category_id' => $request->category_id,
-            'title' => $request->title ?? parse_url($request->url, PHP_URL_HOST) ?? $request->url,
-            'url' => $request->url,
-            'favicon_url' => $request->favicon_url,
-            'is_public' => false,
-            'visitor_token' => $visitorToken,
-        ]);
+        try {
+            $site = Site::create([
+                'category_id' => $request->category_id,
+                'title' => $request->title ?? (parse_url($request->url, PHP_URL_HOST) ?: $request->url),
+                'url' => $request->url,
+                'favicon_url' => $request->favicon_url,
+                'is_public' => false,
+                'visitor_token' => $visitorToken,
+            ]);
+        } catch (QueryException $e) {
+            // 1062 = duplicate entry; covers the race between the unique
+            // validation and the insert under concurrent requests
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                return response()->json(['message' => '该网址已存在'], 422);
+            }
+
+            throw $e;
+        }
 
         return response()->json(['success' => true, 'site' => $site])
             ->withCookie(Cookie::make(

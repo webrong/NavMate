@@ -30,7 +30,8 @@ class DashboardController extends Controller
         // reflect them immediately, not a 5-min-old cached snapshot.
         $clickStats = [
             'total_clicks' => Site::sum('clicks'),
-            'today_clicks' => ClickLog::whereDate('clicked_at', today())->count(),
+            // Range predicate (not whereDate) so the clicked_at index applies
+            'today_clicks' => ClickLog::where('clicked_at', '>=', now()->startOfDay())->count(),
         ];
 
         $stats = array_merge($counts, $clickStats);

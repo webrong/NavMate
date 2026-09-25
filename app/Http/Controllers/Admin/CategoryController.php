@@ -100,7 +100,14 @@ class CategoryController extends Controller
             }
         }
 
-        $category->update(array_filter($data, fn ($v) => ! is_null($v)));
+        // description/parent_id are nullable — explicit null clears them.
+        // Other columns are NOT NULL, so their nulls are dropped instead
+        // of violating strict mode.
+        $data = collect($data)->reject(
+            fn ($v, $key) => is_null($v) && ! in_array($key, ['description', 'parent_id']),
+        )->all();
+
+        $category->update($data);
         $this->clearDashboardCache();
 
         return response()->json(['code' => 0, 'msg' => '更新成功']);

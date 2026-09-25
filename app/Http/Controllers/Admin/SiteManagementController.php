@@ -17,6 +17,8 @@ class SiteManagementController extends Controller
 
     public function data(Request $request): JsonResource
     {
+        $request->validate(['limit' => 'integer|min:1|max:100']);
+
         $query = Site::with('category');
 
         if ($request->filled('keyword')) {
@@ -36,7 +38,7 @@ class SiteManagementController extends Controller
         }
 
         $sites = $query->orderBy('sort_order')->orderBy('id', 'desc')
-            ->paginate($request->input('limit', 15));
+            ->paginate((int) $request->input('limit', 15));
 
         return JsonResource::make($sites)->additional([
             'code' => 0,
@@ -46,12 +48,14 @@ class SiteManagementController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Lengths must match the varchar(255) columns — anything longer
+        // would be a strict-mode insert error, not a validation error
         $data = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'title' => 'required|string|max:255',
-            'url' => 'required|url|max:2048|unique:sites,url',
-            'description' => 'nullable|string|max:500',
-            'favicon_url' => 'nullable|url|max:2048',
+            'url' => 'required|url|max:255|unique:sites,url',
+            'description' => 'nullable|string|max:255',
+            'favicon_url' => 'nullable|url|max:255',
             'is_public' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
             'sort_order' => 'nullable|integer',
@@ -59,6 +63,7 @@ class SiteManagementController extends Controller
 
         $data['is_public'] = $data['is_public'] ?? true;
         $data['is_active'] = $data['is_active'] ?? true;
+        $data = array_filter($data, fn ($v) => ! is_null($v));
 
         $site = Site::create($data);
         $this->clearDashboardCache();
@@ -68,16 +73,24 @@ class SiteManagementController extends Controller
 
     public function update(Request $request, Site $site): JsonResponse
     {
+        // Lengths must match the varchar(255) columns — anything longer
+        // would be a strict-mode insert error, not a validation error
         $data = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'title' => 'required|string|max:255',
-            'url' => 'required|url|max:2048|unique:sites,url,'.$site->id,
-            'description' => 'nullable|string|max:500',
-            'favicon_url' => 'nullable|url|max:2048',
+            'url' => 'required|url|max:255|unique:sites,url,'.$site->id,
+            'description' => 'nullable|string|max:255',
+            'favicon_url' => 'nullable|url|max:255',
             'is_public' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
             'sort_order' => 'nullable|integer',
         ]);
+
+        // description/favicon_url are nullable (null clears them); explicit
+        // nulls on NOT NULL columns would violate strict mode
+        $data = collect($data)->reject(
+            fn ($v, $key) => is_null($v) && ! in_array($key, ['description', 'favicon_url']),
+        )->all();
 
         $site->update($data);
         $this->clearDashboardCache();

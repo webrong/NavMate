@@ -29,6 +29,10 @@ class AdController extends Controller
             'target' => 'nullable|string|in:_blank,_self',
         ]);
 
+        // All ads columns are NOT NULL with defaults — drop nulls so
+        // an explicit null can't violate strict mode
+        $data = array_filter($data, fn ($v) => ! is_null($v));
+
         $ad = Ad::create($data);
 
         return response()->json(['code' => 0, 'msg' => '添加成功', 'data' => $ad], 201);
@@ -45,6 +49,9 @@ class AdController extends Controller
             'is_active' => 'nullable|boolean',
             'target' => 'nullable|string|in:_blank,_self',
         ]);
+
+        // No ads column is nullable — explicit nulls mean "leave unchanged"
+        $data = array_filter($data, fn ($v) => ! is_null($v));
 
         $ad->update($data);
 

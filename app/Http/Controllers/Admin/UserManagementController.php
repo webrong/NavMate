@@ -12,6 +12,8 @@ class UserManagementController extends Controller
 {
     public function index(Request $request): JsonResource
     {
+        $request->validate(['limit' => 'integer|min:1|max:100']);
+
         $query = User::query();
 
         if ($request->filled('keyword')) {
@@ -23,7 +25,7 @@ class UserManagementController extends Controller
         }
 
         $users = $query->orderBy('id', 'desc')
-            ->paginate($request->input('limit', 15));
+            ->paginate((int) $request->input('limit', 15));
 
         return JsonResource::make($users)->additional([
             'code' => 0,
