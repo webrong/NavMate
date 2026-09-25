@@ -44,7 +44,7 @@ const firstLetter = computed(() => {
 const isFav = computed(() => favoritesStore.idSet.has(props.site.id));
 
 function handleFav() {
-  favoritesStore.toggleFavorite(props.site.id);
+  favoritesStore.toggleFavorite(props.site);
 }
 
 // Cache CSRF token once at module level
@@ -52,7 +52,8 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
 function trackClick() {
   if (!props.site.id) return;
-  const payload = JSON.stringify({ site_id: props.site.id });
+  // _token is required for sendBeacon, which cannot set request headers
+  const payload = JSON.stringify({ site_id: props.site.id, _token: csrfToken });
   const url = '/api/click';
   if (navigator.sendBeacon) {
     navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));

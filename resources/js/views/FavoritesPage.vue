@@ -15,21 +15,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import request from '../utils/request';
+import { computed, onMounted } from 'vue';
+import { useFavoritesStore } from '../stores/favorites';
 import SiteCard from '../components/SiteCard.vue';
 
-const sites = ref([]);
-const loading = ref(true);
+// Consume the favorites store directly — App.vue already fetched the list
+// on login, and toggling a favorite here now updates this page immediately
+const favoritesStore = useFavoritesStore();
+const sites = computed(() => favoritesStore.sites);
+const loading = computed(() => !favoritesStore.loaded);
 
-onMounted(async () => {
-  try {
-    const { data } = await request.get('/api/user/favorites');
-    sites.value = data.map((f) => f.site || f);
-  } catch {
-    // ignore
-  } finally {
-    loading.value = false;
+onMounted(() => {
+  if (!favoritesStore.loaded) {
+    favoritesStore.fetchFavorites();
   }
 });
 </script>
