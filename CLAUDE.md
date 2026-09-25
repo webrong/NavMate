@@ -123,17 +123,17 @@ git push origin v1.3.x
 
 快速速记（最新在前）：
 
-1. **仪表盘点击量缓存**：高频实时数据（clicks）不要和低频元数据（站点数）放同一缓存块，点击量实时查询
-2. **SSE session 锁**：流式端点入口必须 `Session::save()` 释放锁
-2. **缓存 Eloquent Collection**：`Cache::remember` 闭包返回纯数组，别缓存 Collection（`->count` 与 Model 方法冲突 → 500）
-3. **断点续传损坏**：续传收到 200 时 cURL 追加到旧文件 → zip 损坏，需检测后重下
-4. **在线升级鸡生蛋**：升级修复需发版 + 手动更新一次才能到达用户
-5. **PHP `-r` 编码**：Windows cmd 下写 .php 文件执行，不用 `-r` 内联
-6. **composer validate --strict**：`composer.json` 不能有 `version` 字段
-7. **Pint fully_qualified_strict_types**：`catch (\Class $e)` 要改成 `use` 导入
-8. **SSR SEO 数据源**：`View::composer('spa')` 读数据库 `Setting::allCached()`，不是 `settings.json`
-9. **搜索越权**：私有站点不出现在公共搜索，不用可伪造的 `visitor_token`
-10. **书签 slug 竞争**：并发导入捕获唯一约束冲突（1062）重试
+1. **在线升级中断后手动接管**：替换完文件必须 `php artisan up` + migrate + 清缓存 + 改 installed 版本标记，否则全站 503（P14）
+2. **书签解析锚定**：`<H3>` 必须紧跟当前 `<DT>`（无界搜索吞书签）；flatten 只递归子文件夹；unique 冲突判断用异常类型不用 1062 错误码（SQLite 是 19）（P12/P13）
+3. **缓存纯数组 + 跨驱动**：`Cache::remember` 闭包返回纯数组；`serializable_classes=false` 下缓存 Collection 永远失效
+4. **仪表盘点击量缓存**：高频实时数据（clicks）不要和低频元数据（站点数）放同一缓存块，点击量实时查询
+5. **SSE session 锁**：流式端点入口必须 `Session::save()` 释放锁；SSE 长步骤（下载）要发进度保活事件，否则前端空闲超时误中断
+6. **在线升级鸡生蛋**：升级修复需发版 + 手动更新一次才能到达用户
+7. **composer validate --strict**：`composer.json` 不能有 `version` 字段
+8. **Pint fully_qualified_strict_types**：`catch (\Class $e)` 要改成 `use` 导入
+9. **SSR SEO 数据源**：`View::composer('spa')` 读数据库 `Setting::allCached()`，不是 `settings.json`
+10. **搜索越权**：私有站点不出现在公共搜索，不用可伪造的 `visitor_token`
+11. **测试渲染 blade 页**：CI 的 PHP job 无前端构建产物，渲染 @vite blade 的测试要 `$this->withoutVite()`；造已验证用户用 `User::factory()`（`email_verified_at` 不可填充）
 
 ## 目录速查
 

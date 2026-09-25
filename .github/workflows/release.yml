@@ -114,7 +114,8 @@ jobs:
             echo "1. 下载下方 \`${TAG#v}\` 的 zip"
             echo "2. 解压覆盖项目目录（保留 \`.env\` 和 \`storage\`）"
             echo "3. 运行 \`php artisan migrate --force\`"
-            echo "4. 运行 \`php artisan config:clear && php artisan cache:clear\`"
+            echo "4. 运行 \`php artisan up\`（如果之前有一次中断的在线升级，站点可能停在维护模式 503）"
+            echo "5. 运行 \`php artisan config:clear && php artisan view:clear && php artisan cache:clear\`"
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 

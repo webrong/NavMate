@@ -6,6 +6,20 @@
 
 ---
 
+## P14. 在线升级中断后手动接管 → 全站 503（2026-09-25）
+
+**现象**：在线升级卡住后手动上传替换文件，站点全站 503 "Service Unavailable"。
+
+**根因**：在线升级第 2 步就写入 `storage/framework/down`（维护模式），卡住期间该文件一直在。手动替换保留 `storage/`（.env 和上传文件都在里面），`down` 文件随之幸存，被 Laravel 内置的 `PreventRequestsDuringMaintenance` 拦下——注意这是**框架原生维护模式**（默认 503 页），不是项目自己的 `CheckMaintenanceMode`（那个读 DB settings，页面是"站点维护中"）。两个维护体系并存，排查时先分清。
+
+**修复/收尾**：`php artisan up`（或删 `storage/framework/down`）→ `php artisan migrate --force` → 清 config/view/cache → 检查 `storage/app/installed` 的 version（手动替换不含 storage，还是旧值，不改会让在线升级重复提示同版本）。
+
+**教训**：手动接管中断的在线升级 = 替换文件只是第一步，`up` + migrate + 清缓存 + 版本标记四件套缺一不可。已写入 release.yml 的手动升级说明模板。
+
+**影响文件**：`.github/workflows/release.yml`（发版说明模板）
+
+---
+
 ## P13. 书签解析器吞书签 + 直属书签重复两次（2026-09-25）
 
 **现象**：带文件夹的书签文件导入后，紧挨着子文件夹前面的直属书签消失；同一次导入里其余书签偶尔撞 `sites.url` 唯一键。
