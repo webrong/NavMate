@@ -6,7 +6,6 @@ export const useCategoryStore = defineStore('categories', {
         categories: [],
         loading: false,
         error: null,
-        activeCategoryId: null,
         // Timestamp of last successful fetch. Used to auto-invalidate stale
         // cache so changes made in the admin panel eventually show up on the
         // front-end without requiring a hard refresh.
@@ -18,6 +17,20 @@ export const useCategoryStore = defineStore('categories', {
     _cacheTtl: 5 * 60 * 1000,
 
     getters: {
+        /** All sites flattened from the categories tree in one pass, so
+         *  consumers (e.g. search suggestions) don't rebuild it per keystroke. */
+        flatSites(state) {
+            const sites = [];
+            const walk = (cats) => {
+                for (const cat of cats) {
+                    if (cat.sites) sites.push(...cat.sites);
+                    if (cat.children) walk(cat.children);
+                }
+            };
+            walk(state.categories);
+            return sites;
+        },
+
         sidebarItems(state) {
             return state.categories.map(cat => ({
                 id: cat.id,
@@ -55,10 +68,6 @@ export const useCategoryStore = defineStore('categories', {
          *  admin operations that change category data. */
         invalidate() {
             this.lastFetchedAt = 0;
-        },
-
-        setActiveCategory(id) {
-            this.activeCategoryId = id;
         },
     },
 });

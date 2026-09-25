@@ -22,7 +22,15 @@ return new class extends Migration
 
         // Create default admin user (only when NOT running through installer)
         if (! env('NAV_INSTALLING')) {
-            $password = env('ADMIN_DEFAULT_PASSWORD', str()->random(16));
+            $password = env('ADMIN_DEFAULT_PASSWORD');
+            $generated = false;
+            if (! $password) {
+                // Never fall back to a guessable default — a seeded admin with
+                // a known password is an instant account takeover. Print the
+                // generated password once so the operator can actually log in.
+                $password = str()->random(16);
+                $generated = true;
+            }
             AdminUser::create([
                 'name' => 'Admin',
                 'username' => 'admin',
@@ -30,6 +38,9 @@ return new class extends Migration
                 'password' => $password,
                 'email_verified_at' => now(),
             ]);
+            if ($generated && isset($this->command)) {
+                $this->command->warn('已生成随机管理员密码: '.$password.'（仅显示这一次，请立即登录修改）');
+            }
         }
     }
 

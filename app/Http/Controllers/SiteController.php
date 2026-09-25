@@ -74,11 +74,12 @@ class SiteController extends Controller
             return response()->json(['success' => false], 404);
         }
 
-        // Deduplication: max 1 click per IP per site per hour (counter + log)
+        // Deduplication: max 1 click per IP per site per hour (counter + log).
+        // Cache::add is atomic — a has+put pair would double-count under
+        // concurrent clicks in the check-then-act window.
         $dedupKey = 'click:'.$request->ip().':'.$site->id;
-        if (! Cache::has($dedupKey)) {
+        if (Cache::add($dedupKey, true, 3600)) {
             $site->increment('clicks');
-            Cache::put($dedupKey, true, 3600); // 1 hour window
 
             ClickLog::create([
                 'site_id' => $site->id,

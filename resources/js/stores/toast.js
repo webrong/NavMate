@@ -10,6 +10,10 @@ export const useToastStore = defineStore('toast', {
         show(message, type = 'success', duration = 3000) {
             const id = this.nextId++;
             this.items.push({ id, message, type });
+            // Cap on-screen toasts; drop the oldest when overflowing.
+            if (this.items.length > 5) {
+                this.items.splice(0, this.items.length - 5);
+            }
             if (duration > 0) {
                 setTimeout(() => this.remove(id), duration);
             }

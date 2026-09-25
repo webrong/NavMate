@@ -4,6 +4,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useResizeObserver } from '@vueuse/core';
 import * as echarts from 'echarts/core';
 import { BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
@@ -69,15 +70,18 @@ function getOption() {
 }
 
 function render() { chart && chart.setOption(getOption(), true); }
-function resize() { chart && chart.resize(); }
 
 onMounted(() => {
   chart = echarts.init(chartRef.value);
   render();
-  window.addEventListener('resize', resize);
+});
+// Observe the chart container (not the window) so folding the sidebar or
+// toggling fullscreen — which resize the container without a window resize —
+// still triggers a canvas redraw.
+useResizeObserver(chartRef, () => {
+  chart && chart.resize();
 });
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', resize);
   chart && chart.dispose();
 });
 watch(() => props.data, render, { deep: true });

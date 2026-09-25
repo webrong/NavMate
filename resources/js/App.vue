@@ -35,7 +35,7 @@
 import { ref, computed, provide, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { sanitizeHtml } from './composables/useSanitize';
-import { updateTitle, setBaseSiteName, setRobots } from './composables/useSeo';
+import { updateTitle, setBaseSiteName } from './composables/useSeo';
 import TheHeader from './components/TheHeader.vue';
 import TheSidebar from './components/TheSidebar.vue';
 import ThemeSwitcher from './components/ThemeSwitcher.vue';

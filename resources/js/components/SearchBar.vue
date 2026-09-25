@@ -66,7 +66,7 @@
       <!-- Bulletin (inside search-container, outside big-search) -->
       <div class="bulletin-bar">
         <span class="bulletin-icon">&#128197;</span>
-        <span class="bulletin-text">{{ dateTimeStr }} ｜ {{ lunarStr }}</span>
+        <BulletinClock />
       </div>
     </div>
   </div>
@@ -76,7 +76,7 @@
 import { computed, inject, ref, onMounted, onUnmounted } from 'vue';
 import { useSearchStore } from '../stores/search';
 import { useCategoryStore } from '../stores/categories';
-import { formatLunar } from '../utils/lunar';
+import BulletinClock from './BulletinClock.vue';
 
 const searchStore = useSearchStore();
 const categoryStore = useCategoryStore();
@@ -87,40 +87,11 @@ const suggestions = ref([]);
 const showSuggestions = ref(false);
 let debounceTimer = null;
 
-// Clock — time updates every second, date/lunar cached by day
-const timeStr = ref('');
-const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
-const pad = (n) => String(n).padStart(2, '0');
-let timer = null;
-
-// Cache lunar by date string to avoid recalculating every second
-const cachedDateStr = ref('');
-const cachedLunar = ref('');
-const cachedDatePart = ref('');
-
-function updateClock() {
-  const d = new Date();
-  timeStr.value = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-
-  const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-  if (dateKey !== cachedDateStr.value) {
-    cachedDateStr.value = dateKey;
-    cachedDatePart.value = `${d.getFullYear()}年${pad(d.getMonth() + 1)}月${pad(d.getDate())}日 星期${WEEK[d.getDay()]}`;
-    cachedLunar.value = formatLunar(d);
-  }
-}
-
-const dateTimeStr = computed(() => cachedDatePart.value + ' ' + timeStr.value);
-const lunarStr = computed(() => cachedLunar.value);
-
 onMounted(() => {
-  updateClock();
-  timer = setInterval(updateClock, 1000);
   document.addEventListener('click', onClickOutside);
 });
 
 onUnmounted(() => {
-  clearInterval(timer);
   clearTimeout(debounceTimer);
   document.removeEventListener('click', onClickOutside);
 });
@@ -164,18 +135,9 @@ function onInput() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     const q = val.toLowerCase();
-    const allSites = [];
-    categoryStore.categories.forEach(cat => {
-      (cat.children || []).forEach(child => {
-        (child.sites || []).forEach(s => {
-          allSites.push({ title: s.title, favicon_url: s.favicon_url, id: s.id });
-        });
-      });
-      (cat.sites || []).forEach(s => {
-        allSites.push({ title: s.title, favicon_url: s.favicon_url, id: s.id });
-      });
-    });
-    suggestions.value = allSites.filter(s => s.title.toLowerCase().includes(q)).slice(0, 6);
+    suggestions.value = categoryStore.flatSites
+      .filter(s => s.title.toLowerCase().includes(q))
+      .slice(0, 6);
     showSuggestions.value = suggestions.value.length > 0;
   }, 300);
 }

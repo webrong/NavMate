@@ -188,6 +188,7 @@ function editLink() {
 
 function deleteLink() {
   if (!ctx.link) return;
+  if (!window.confirm('确定删除该快捷链接？')) return;
   store.removeLink(ctx.link.id);
   ctx.show = false;
 }
@@ -259,6 +260,7 @@ async function submit() {
 }
 
 function remove(id) {
+  if (!window.confirm('确定删除该快捷链接？')) return;
   store.removeLink(id);
 }
 

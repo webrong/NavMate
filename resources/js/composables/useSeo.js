@@ -20,25 +20,3 @@ export function updateTitle(routeTitle) {
     document.title = baseSiteName;
   }
 }
-
-/**
- * Set meta tag content by name attribute
- * @param {string} name - meta tag name
- * @param {string} content - meta tag content
- */
-export function setMeta(name, content) {
-  let meta = document.querySelector(`meta[name="${name}"]`);
-  if (!meta) {
-    meta = document.createElement('meta');
-    meta.setAttribute('name', name);
-    document.head.appendChild(meta);
-  }
-  meta.setAttribute('content', content);
-}
-
-/**
- * Set robots meta tag (e.g. 'noindex' for search result pages)
- */
-export function setRobots(value) {
-  setMeta('robots', value);
-}

@@ -57,7 +57,9 @@ class AdminSiteCrudTest extends TestCase
     {
         Site::factory()->forCategory($this->category->id)->create(['title' => 'GitHub']);
         Site::factory()->forCategory($this->category->id)->create(['title' => 'GitLab']);
-        Site::factory()->forCategory($this->category->id)->create(['title' => 'Totally Unrelated']);
+        // Explicit URL: the filter matches title OR url, and faker URLs can
+        // randomly contain "git" — pin it so the test isn't flaky
+        Site::factory()->forCategory($this->category->id)->create(['title' => 'Totally Unrelated', 'url' => 'https://totally-unrelated.example.com']);
 
         $response = $this->actingAs($this->admin, 'admin')
             ->getJson('/admin/api/sites?keyword=Git');

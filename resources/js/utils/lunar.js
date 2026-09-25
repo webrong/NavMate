@@ -43,8 +43,15 @@ function yearDays(y) {
 }
 
 function solarToLunar(year, month, day) {
-  const base = Date.UTC(1900, 0, 31);
   const target = Date.UTC(year, month - 1, day);
+
+  // The data table only covers 1900-01-31 .. 2100-12-31; outside that range
+  // return null so callers can fall back to solar-only display.
+  if (target < Date.UTC(1900, 0, 31) || target > Date.UTC(2100, 11, 31)) {
+    return null;
+  }
+
+  const base = Date.UTC(1900, 0, 31);
   let offset = Math.floor((target - base) / 86400000);
 
   let lYear;
@@ -87,9 +94,12 @@ const DayN = [
 ];
 
 export function formatLunar(date) {
-  const { year, month, day, isLeap } = solarToLunar(
+  const lunar = solarToLunar(
     date.getFullYear(), date.getMonth() + 1, date.getDate()
   );
+  // Out of supported range — let the caller degrade to solar-only display.
+  if (!lunar) return '';
+  const { year, month, day, isLeap } = lunar;
   const gz = Gan[(year - 4) % 10] + Zhi[(year - 4) % 12];
   const m = (isLeap ? '闰' : '') + MonthN[month - 1] + '月';
   const d = DayN[day - 1];

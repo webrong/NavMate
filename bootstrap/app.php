@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Middleware\CheckMaintenanceMode;
-use App\Http\Middleware\EnsureIsAdmin;
 use App\Http\Middleware\PrerenderForBots;
 use App\Http\Middleware\RedirectIfNotInstalled;
 use App\Http\Middleware\SecurityHeaders;
@@ -16,9 +15,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias([
-            'admin' => EnsureIsAdmin::class,
-        ]);
         $middleware->web([
             // SecurityHeaders outermost so 302 (install redirect), 503
             // (maintenance) and bot prerender responses all carry the headers.

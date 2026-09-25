@@ -181,7 +181,6 @@ const topCategories = ref([]);
 const hourlyData = ref([]);
 const recentClicks = ref([]);
 const summary = reactive({ total_clicks: 0, unique_visitors: 0, avg_daily_clicks: 0, today_clicks: 0, click_growth: 0 });
-const loading = ref(false);
 let refreshTimer = null;
 
 // Presets MUST be dayjs objects, not native Date — antdv RangePicker calls
@@ -205,17 +204,38 @@ const recentColumns = [
   { title: '时间', key: 'clicked_at', width: 170 },
 ];
 
-onMounted(() => {
-  fetchAll();
+function startPolling() {
+  if (refreshTimer) clearInterval(refreshTimer);
   // Auto-refresh today's data every 30s
   refreshTimer = setInterval(() => {
     fetchSummary();
     fetchRecentClicks();
   }, 30000);
+}
+
+function stopPolling() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = null;
+}
+
+// Pause polling while the tab is hidden; restart when it becomes visible again.
+function onVisibilityChange() {
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    startPolling();
+  }
+}
+
+onMounted(() => {
+  fetchAll();
+  startPolling();
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer);
+  stopPolling();
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   document.removeEventListener('fullscreenchange', onFullscreenChange);
   if (isFullscreen.value) document.exitFullscreen?.();
 });
@@ -254,30 +274,25 @@ function getParams() {
 }
 
 async function fetchAll() {
-  loading.value = true;
-  try {
-    const params = getParams();
-    // Use allSettled so one failing endpoint doesn't blank out all charts.
-    // Each endpoint is independent — trends can render even if hourly errors.
-    const [
-      trendsRes, topRes, summaryRes, catRes, hourlyRes, recentRes,
-    ] = await Promise.allSettled([
-      request.get('/admin/api/analytics/trends', { params }),
-      request.get('/admin/api/analytics/top-sites', { params }),
-      request.get('/admin/api/analytics/summary', { params }),
-      request.get('/admin/api/analytics/top-categories', { params }),
-      request.get('/admin/api/analytics/hourly', { params }),
-      request.get('/admin/api/analytics/recent-clicks', { params: { limit: 20 } }),
-    ]);
-    if (trendsRes.status === 'fulfilled') trends.value = trendsRes.value.data?.data || [];
-    if (topRes.status === 'fulfilled') topSites.value = topRes.value.data?.data || [];
-    if (summaryRes.status === 'fulfilled') Object.assign(summary, summaryRes.value.data?.data || {});
-    if (catRes.status === 'fulfilled') topCategories.value = catRes.value.data?.data || [];
-    if (hourlyRes.status === 'fulfilled') hourlyData.value = hourlyRes.value.data?.data || [];
-    if (recentRes.status === 'fulfilled') recentClicks.value = recentRes.value.data?.data || [];
-  } finally {
-    loading.value = false;
-  }
+  const params = getParams();
+  // Use allSettled so one failing endpoint doesn't blank out all charts.
+  // Each endpoint is independent — trends can render even if hourly errors.
+  const [
+    trendsRes, topRes, summaryRes, catRes, hourlyRes, recentRes,
+  ] = await Promise.allSettled([
+    request.get('/admin/api/analytics/trends', { params }),
+    request.get('/admin/api/analytics/top-sites', { params }),
+    request.get('/admin/api/analytics/summary', { params }),
+    request.get('/admin/api/analytics/top-categories', { params }),
+    request.get('/admin/api/analytics/hourly', { params }),
+    request.get('/admin/api/analytics/recent-clicks', { params: { limit: 20 } }),
+  ]);
+  if (trendsRes.status === 'fulfilled') trends.value = trendsRes.value.data?.data || [];
+  if (topRes.status === 'fulfilled') topSites.value = topRes.value.data?.data || [];
+  if (summaryRes.status === 'fulfilled') Object.assign(summary, summaryRes.value.data?.data || {});
+  if (catRes.status === 'fulfilled') topCategories.value = catRes.value.data?.data || [];
+  if (hourlyRes.status === 'fulfilled') hourlyData.value = hourlyRes.value.data?.data || [];
+  if (recentRes.status === 'fulfilled') recentClicks.value = recentRes.value.data?.data || [];
 }
 
 async function fetchSummary() {
@@ -296,32 +311,11 @@ async function fetchRecentClicks() {
 }
 
 // Computed
-const maxCount = computed(() => Math.max(...trends.value.map(t => t.count), 1));
 const maxClicks = computed(() => Math.max(...topSites.value.map(s => s.clicks), 1));
-const maxCategoryClicks = computed(() => Math.max(...topCategories.value.map(c => c.clicks), 1));
-const maxHourly = computed(() => Math.max(...hourlyData.value.map(h => h.count), 1));
 const hasHourlyData = computed(() => hourlyData.value.some(h => h.count > 0));
-
-function getBarHeight(count) {
-  return maxCount.value > 0 ? (count / maxCount.value) * 180 : 0;
-}
-
-function getHourlyHeight(count) {
-  return maxHourly.value > 0 ? (count / maxHourly.value) * 150 : 0;
-}
 
 function getClicksPercent(clicks) {
   return maxClicks.value > 0 ? (clicks / maxClicks.value) * 100 : 0;
-}
-
-function getCategoryPercent(clicks) {
-  return maxCategoryClicks.value > 0 ? (clicks / maxCategoryClicks.value) * 100 : 0;
-}
-
-function formatShortDate(date) {
-  if (!date) return '';
-  const parts = date.split('-');
-  return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : date;
 }
 
 function formatTime(datetime) {

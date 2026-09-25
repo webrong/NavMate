@@ -129,15 +129,29 @@ function logout() {
   toast.success('已退出登录');
 }
 
-function onGlobalKeydown(e) {
-  if (e.key === 'Escape') {
-    if (activeTool.value) { activeTool.value = null; e.stopPropagation(); }
-    if (showUserMenu.value) { showUserMenu.value = false; e.stopPropagation(); }
+// Close the user dropdown when clicking outside the avatar/dropdown area.
+function onDocClick(e) {
+  if (!e.target.closest('.user-avatar, .user-dropdown')) {
+    showUserMenu.value = false;
   }
 }
 
-onMounted(() => document.addEventListener('keydown', onGlobalKeydown));
-onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown));
+function onGlobalKeydown(e) {
+  if (e.key === 'Escape') {
+    if (activeTool.value) activeTool.value = null;
+    if (showUserMenu.value) showUserMenu.value = false;
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onGlobalKeydown);
+  document.addEventListener('click', onDocClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onGlobalKeydown);
+  document.removeEventListener('click', onDocClick);
+});
 </script>
 
 <style scoped>

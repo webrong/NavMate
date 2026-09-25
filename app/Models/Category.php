@@ -44,22 +44,6 @@ class Category extends Model
     }
 
     /**
-     * 所有后代分类（限制深度为3层）
-     */
-    public function descendants(): HasMany
-    {
-        return $this->hasMany(Category::class, 'parent_id')
-            ->active()
-            ->ordered()
-            ->with(['children' => function ($query) {
-                $query->active()->ordered()
-                    ->with(['children' => function ($q) {
-                        $q->active()->ordered();
-                    }]);
-            }]);
-    }
-
-    /**
      * 只获取激活的分类
      */
     public function scopeActive($query)
@@ -81,19 +65,5 @@ class Category extends Model
     public function scopeRoot($query)
     {
         return $query->whereNull('parent_id');
-    }
-
-    /**
-     * 获取所有根分类及其子分类
-     */
-    public static function tree()
-    {
-        return static::root()
-            ->active()
-            ->ordered()
-            ->with(['children' => function ($query) {
-                $query->active();
-            }])
-            ->get();
     }
 }

@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+// clicks is intentionally not fillable — it is a counter maintained via
+// increment(), never settable from client input
 #[Fillable([
     'category_id', 'title', 'url', 'description',
     'favicon_url', 'is_public', 'is_active',
-    'clicks', 'sort_order', 'visitor_token',
+    'sort_order', 'visitor_token',
 ])]
 class Site extends Model
 {

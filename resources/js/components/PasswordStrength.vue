@@ -43,7 +43,8 @@ const color = computed(() => ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#
 .strength-bar {
   flex: 1;
   height: 3px;
-  background: rgba(0, 0, 0, 0.08);
+  /* Theme token so the track stays visible in dark mode (white alpha there). */
+  background: var(--hover-bg);
   border-radius: 2px;
   overflow: hidden;
 }

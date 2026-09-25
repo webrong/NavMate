@@ -8,19 +8,36 @@ const request = axios.create({
     },
 });
 
-// CSRF token
-const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-if (csrfMeta) {
-    request.defaults.headers.common['X-CSRF-TOKEN'] = csrfMeta.content;
+// CSRF token — read per-request so session rotation is picked up
+// instead of freezing whatever the meta tag held at module load.
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+request.interceptors.request.use((config) => {
+    config.headers['X-CSRF-TOKEN'] = csrfToken();
+    return config;
+});
+
 // Response interceptor — global error handling
+
+// Single-flight guard for 401/419: when a session expires several in-flight
+// requests fail at once, but only the first should toast and redirect.
+let redirecting401 = false;
 request.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
 
         if (status === 401 || status === 419) {
+            if (redirecting401) {
+                return Promise.reject(error);
+            }
+            redirecting401 = true;
+            setTimeout(() => {
+                redirecting401 = false;
+            }, 2000);
+
             import('../stores/auth').then(({ useAuthStore }) => {
                 const auth = useAuthStore();
                 auth.user = null;

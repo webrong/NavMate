@@ -7,6 +7,7 @@ use App\Models\UserLink;
 use App\Services\UrlFetcherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserLinkController extends Controller
 {
@@ -80,21 +81,26 @@ class UserLinkController extends Controller
     public function reorder(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'items' => 'required|array',
+            'items' => 'required|array|max:500',
             'items.*.id' => 'required|integer',
             'items.*.sort_order' => 'required|integer',
         ]);
 
         $user = $request->user();
 
-        foreach ($data['items'] as $item) {
-            $link = UserLink::where('id', $item['id'])
-                ->where('user_id', $user->id)
-                ->first();
-            if ($link) {
-                $link->update(['sort_order' => $item['sort_order']]);
+        // Ownership is resolved in one query, then all updates run in a single
+        // transaction so a failure can't leave the ordering half-applied
+        DB::transaction(function () use ($data, $user) {
+            $ownedIds = UserLink::where('user_id', $user->id)
+                ->whereIn('id', array_column($data['items'], 'id'))
+                ->pluck('id');
+
+            foreach ($data['items'] as $item) {
+                if ($ownedIds->contains($item['id'])) {
+                    UserLink::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
+                }
             }
-        }
+        });
 
         return response()->json(['message' => '排序已更新']);
     }

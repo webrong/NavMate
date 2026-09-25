@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-09-25T01:14:48.805Z",
+  "sessionId": "sess_1531ff7f-5739-4611-b2fa-f49acd64615b",
+  "event": "PostToolUse",
+  "toolName": "Edit",
+  "file": "C:\\Users\\yixs\\Desktop\\code\\navigation\\app\\Models\\User.php",
+  "outcome": "inconclusive",
+  "coverage": "partial",
+  "findingCount": 0,
+  "durationMs": 9,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

@@ -614,7 +614,10 @@ async function deleteLink(id) {
 async function handleSave() {
   saving.value = true;
   try {
-    await request.put('/admin/api/settings', { ...form });
+    // mail_password 为空表示不修改密码，剔除该字段，避免把空串回传给后端覆盖已存密码。
+    const payload = { ...form };
+    if (!payload.mail_password) delete payload.mail_password;
+    await request.put('/admin/api/settings', payload);
     message.success('设置已保存');
   } catch {
     // 错误提示已由 request 拦截器统一弹出

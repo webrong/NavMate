@@ -46,15 +46,6 @@ export const useUserLinksStore = defineStore('userLinks', {
             }
         },
 
-        async reorder(items) {
-            try {
-                await request.put('/api/user/links/reorder', { items });
-                await this.fetchLinks();
-            } catch {
-                await this.fetchLinks();
-            }
-        },
-
         clear() {
             this.links = [];
             this.loaded = false;

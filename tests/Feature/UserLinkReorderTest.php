@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Models\UserLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,14 +19,13 @@ class UserLinkReorderTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $link1 = UserLink::create([
-            'user_id' => $user->id,
+        // user_id is not fillable — create through the relation
+        $link1 = $user->links()->create([
             'title' => 'Link 1',
             'url' => 'https://example1.com',
             'sort_order' => 1,
         ]);
-        $link2 = UserLink::create([
-            'user_id' => $user->id,
+        $link2 = $user->links()->create([
             'title' => 'Link 2',
             'url' => 'https://example2.com',
             'sort_order' => 2,

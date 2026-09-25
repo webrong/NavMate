@@ -115,11 +115,6 @@ const filterStatus = ref('');
 
 const positionLabels = { content_between: '内容区间', sidebar_bottom: '侧边栏底部', footer_above: '页脚上方' };
 const positionColors = { content_between: 'blue', sidebar_bottom: 'green', footer_above: 'orange' };
-const positionOptions = [
-  { value: 'content_between', label: '内容区间' },
-  { value: 'sidebar_bottom', label: '侧边栏底部' },
-  { value: 'footer_above', label: '页脚上方' },
-];
 
 const form = reactive({
   title: '',

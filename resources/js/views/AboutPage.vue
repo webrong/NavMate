@@ -17,7 +17,7 @@
             <div class="about-stat-num">{{ stats.sites }}</div>
             <div class="about-stat-label">站点</div>
           </div>
-          <div class="about-stat-item">
+          <div class="about-stat-item" v-if="stats.months !== null">
             <div class="about-stat-num">{{ stats.months }}</div>
             <div class="about-stat-label">月运营</div>
           </div>
@@ -98,11 +98,18 @@ const stats = computed(() => {
   };
   countSites(cats);
 
-  let months = 0;
+  let months = null;
   if (timeline.value.length > 0) {
-    const firstDate = new Date(timeline.value[timeline.value.length - 1].date);
-    const now = new Date();
-    months = Math.max(1, Math.round((now - firstDate) / (30.44 * 86400000)));
+    // Count operation length from the earliest valid timeline date;
+    // drop invalid dates, and hide the stat when none are usable.
+    const dates = timeline.value
+      .map((item) => new Date(item.date))
+      .filter((d) => Number.isFinite(d.getTime()));
+    if (dates.length > 0) {
+      const firstDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const now = new Date();
+      months = Math.max(1, Math.round((now - firstDate) / (30.44 * 86400000)));
+    }
   }
 
   return { categories: cats.length, sites: siteCount, months };
