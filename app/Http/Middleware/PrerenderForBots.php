@@ -79,7 +79,7 @@ class PrerenderForBots
             $treeService = app(CategoryTreeService::class);
             $categories = $treeService->getPublicTree();
         } catch (\Throwable) {
-            $categories = collect();
+            $categories = [];
         }
 
         $allSettings = collect();

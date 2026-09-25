@@ -96,8 +96,8 @@ async function handleUpload(options) {
     });
     previewData.value = data.data;
     message.success('解析成功');
-  } catch (e) {
-    message.error(e.response?.data?.error || '解析失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   }
   return false;
 }
@@ -117,8 +117,8 @@ async function handleImport() {
     });
     importResult.value = data;
     message.success('导入成功');
-  } catch (e) {
-    message.error(e.response?.data?.error || '导入失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     importing.value = false;
   }

@@ -190,7 +190,7 @@ async function handleFetchUrl() {
     if (data.favicon_url) form.favicon_url = data.favicon_url;
     message.success('抓取成功');
   } catch {
-    message.error('抓取失败');
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     fetchingUrl.value = false;
   }
@@ -208,8 +208,8 @@ async function handleSubmit() {
     }
     modalVisible.value = false;
     store.fetchList();
-  } catch (e) {
-    message.error(e.response?.data?.message || '操作失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     submitting.value = false;
   }
@@ -220,8 +220,8 @@ async function handleDelete(id) {
     await store.remove(id);
     message.success('删除成功');
     store.fetchList();
-  } catch (e) {
-    message.error(e.response?.data?.message || '删除失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 </script>

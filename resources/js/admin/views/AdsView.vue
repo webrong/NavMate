@@ -155,7 +155,7 @@ async function fetchAds() {
     const { data } = await request.get('/admin/api/ads');
     ads.value = data.data || [];
   } catch {
-    message.error('加载广告列表失败');
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 
@@ -197,8 +197,8 @@ async function handleSubmit() {
     }
     modalVisible.value = false;
     fetchAds();
-  } catch (e) {
-    message.error(e.response?.data?.message || '操作失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     submitting.value = false;
   }
@@ -209,8 +209,8 @@ async function handleDelete(id) {
     await request.delete(`/admin/api/ads/${id}`);
     message.success('删除成功');
     fetchAds();
-  } catch (e) {
-    message.error(e.response?.data?.message || '删除失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 
@@ -226,8 +226,8 @@ async function handleImageUpload(file) {
       form.image_url = data.data.url;
       message.success('上传成功');
     }
-  } catch (e) {
-    message.error(e.response?.data?.message || '上传失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     imageUploading.value = false;
   }

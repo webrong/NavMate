@@ -8,7 +8,7 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
-        "axios": ">=1.11.0 <=1.14.0",
+        "@vitejs/plugin-vue": "^6.0.5",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.0.0",
         "sass-embedded": "^1.98.0",
@@ -17,16 +17,14 @@
     },
     "dependencies": {
         "@ant-design/icons-vue": "^7.0.1",
-        "@popperjs/core": "^2.11.8",
-        "@vitejs/plugin-vue": "^6.0.5",
         "@vueuse/core": "^14.3.0",
         "antdv-next": "^1.1.8",
-        "bootstrap": "^5.3.8",
+        "axios": ">=1.11.0 <=1.14.0",
+        "dayjs": "^1.11.13",
         "dompurify": "^3.3.3",
         "echarts": "^6.1.0",
         "pinia": "^3.0.4",
         "vue": "^3.5.32",
-        "vue-echarts": "^8.0.1",
         "vue-router": "^4.6.4"
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Site;
 use App\Services\CategoryTreeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Tests\TestCase;
 
 class CategoryTreeServiceTest extends TestCase
@@ -20,11 +21,11 @@ class CategoryTreeServiceTest extends TestCase
         $this->service = app(CategoryTreeService::class);
     }
 
-    public function test_empty_database_returns_empty_collection(): void
+    public function test_empty_database_returns_empty_array(): void
     {
         $tree = $this->service->getPublicTree();
 
-        $this->assertTrue($tree->isEmpty());
+        $this->assertSame([], $tree);
     }
 
     public function test_parent_without_sites_or_children_is_filtered_out(): void
@@ -34,7 +35,7 @@ class CategoryTreeServiceTest extends TestCase
 
         $tree = $this->service->getPublicTree();
 
-        $this->assertTrue($tree->isEmpty());
+        $this->assertSame([], $tree);
     }
 
     public function test_parent_with_sites_is_included(): void
@@ -45,8 +46,8 @@ class CategoryTreeServiceTest extends TestCase
         $tree = $this->service->getPublicTree();
 
         $this->assertCount(1, $tree);
-        $this->assertSame($category->id, $tree->first()->id);
-        $this->assertCount(1, $tree->first()->sites);
+        $this->assertSame($category->id, $tree[0]['id']);
+        $this->assertCount(1, $tree[0]['sites']);
     }
 
     public function test_parent_with_only_children_is_included(): void
@@ -59,9 +60,9 @@ class CategoryTreeServiceTest extends TestCase
         $tree = $this->service->getPublicTree();
 
         $this->assertCount(1, $tree);
-        $this->assertSame($parent->id, $tree->first()->id);
-        $this->assertCount(1, $tree->first()->children);
-        $this->assertSame($child->id, $tree->first()->children->first()->id);
+        $this->assertSame($parent->id, $tree[0]['id']);
+        $this->assertCount(1, $tree[0]['children']);
+        $this->assertSame($child->id, $tree[0]['children'][0]['id']);
     }
 
     public function test_inactive_category_is_excluded(): void
@@ -71,7 +72,7 @@ class CategoryTreeServiceTest extends TestCase
 
         $tree = $this->service->getPublicTree();
 
-        $this->assertTrue($tree->isEmpty());
+        $this->assertSame([], $tree);
     }
 
     public function test_inactive_site_is_excluded_from_sites_list(): void
@@ -84,7 +85,7 @@ class CategoryTreeServiceTest extends TestCase
 
         $this->assertCount(1, $tree);
         // Only the active site should be attached
-        $this->assertCount(1, $tree->first()->sites);
+        $this->assertCount(1, $tree[0]['sites']);
     }
 
     public function test_private_site_is_excluded_from_sites_list(): void
@@ -95,7 +96,7 @@ class CategoryTreeServiceTest extends TestCase
 
         $tree = $this->service->getPublicTree();
 
-        $this->assertCount(1, $tree->first()->sites);
+        $this->assertCount(1, Arr::first($tree)['sites']);
     }
 
     public function test_children_are_correctly_nested_under_their_parent(): void
@@ -116,10 +117,10 @@ class CategoryTreeServiceTest extends TestCase
 
         $this->assertCount(2, $tree);
 
-        $foundA = $tree->firstWhere('id', $parentA->id);
-        $this->assertCount(2, $foundA->children);
+        $foundA = Arr::first($tree, fn ($node) => $node['id'] === $parentA->id);
+        $this->assertCount(2, $foundA['children']);
 
-        $foundB = $tree->firstWhere('id', $parentB->id);
-        $this->assertCount(1, $foundB->children);
+        $foundB = Arr::first($tree, fn ($node) => $node['id'] === $parentB->id);
+        $this->assertCount(1, $foundB['children']);
     }
 }

@@ -94,33 +94,33 @@
     <main class="main">
         @foreach($categories as $category)
         <section class="category">
-            <h2>{{ $category->name }}</h2>
-            @if($category->sites && $category->sites->isNotEmpty())
+            <h2>{{ $category['name'] }}</h2>
+            @if(!empty($category['sites']))
             <div class="sites">
-                @foreach($category->sites as $site)
-                <a href="{{ $site->url }}" class="site" target="_blank" rel="noopener noreferrer">
-                    @if($site->favicon_url)
-                    <img src="{{ $site->favicon_url }}" alt="" loading="lazy" width="20" height="20">
+                @foreach($category['sites'] as $site)
+                <a href="{{ $site['url'] }}" class="site" target="_blank" rel="noopener noreferrer">
+                    @if($site['favicon_url'])
+                    <img src="{{ $site['favicon_url'] }}" alt="" loading="lazy" width="20" height="20">
                     @endif
-                    <span class="title">{{ $site->title }}</span>
+                    <span class="title">{{ $site['title'] }}</span>
                 </a>
                 @endforeach
             </div>
             @endif
 
-            @if(isset($category->children) && $category->children->isNotEmpty())
+            @if(!empty($category['children']))
             <div class="child-categories">
-                @foreach($category->children as $child)
+                @foreach($category['children'] as $child)
                 <div style="margin-bottom: 16px;">
-                    <h3>{{ $child->name }}</h3>
-                    @if($child->sites && $child->sites->isNotEmpty())
+                    <h3>{{ $child['name'] }}</h3>
+                    @if(!empty($child['sites']))
                     <div class="sites">
-                        @foreach($child->sites as $site)
-                        <a href="{{ $site->url }}" class="site" target="_blank" rel="noopener noreferrer">
-                            @if($site->favicon_url)
-                            <img src="{{ $site->favicon_url }}" alt="" loading="lazy" width="20" height="20">
+                        @foreach($child['sites'] as $site)
+                        <a href="{{ $site['url'] }}" class="site" target="_blank" rel="noopener noreferrer">
+                            @if($site['favicon_url'])
+                            <img src="{{ $site['favicon_url'] }}" alt="" loading="lazy" width="20" height="20">
                             @endif
-                            <span class="title">{{ $site->title }}</span>
+                            <span class="title">{{ $site['title'] }}</span>
                         </a>
                         @endforeach
                     </div>

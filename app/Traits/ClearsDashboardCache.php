@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Services\CategoryTreeService;
 use Illuminate\Support\Facades\Cache;
 
 trait ClearsDashboardCache
@@ -20,5 +21,7 @@ trait ClearsDashboardCache
         Cache::forget('dashboard:counts');
         Cache::forget('dashboard:recent');
         Cache::forget('dashboard:top');
+        // Public category tree (shared by /api/categories and bot prerender)
+        Cache::forget(CategoryTreeService::TREE_CACHE_KEY);
     }
 }

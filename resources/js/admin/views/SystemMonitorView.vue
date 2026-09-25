@@ -178,7 +178,7 @@ async function loadInfo(refresh) {
     info.value = data;
     if (refresh) message.success('已刷新');
   } catch {
-    message.error('加载系统信息失败');
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     loading.value = false;
   }
@@ -191,7 +191,7 @@ async function handleClearCache() {
     message.success(data.message || '缓存已清理');
     loadInfo(true);
   } catch {
-    message.error('清理缓存失败');
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     clearing.value = false;
   }

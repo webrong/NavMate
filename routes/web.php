@@ -14,13 +14,12 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\CategoryController as ApiCategoryController;
 use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\PublicContentController;
 use App\Http\Controllers\Api\UserLayoutController;
 use App\Http\Controllers\Api\UserLinkController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\SeoController;
 use App\Http\Controllers\SiteController;
-use App\Models\Ad;
-use App\Models\FriendLink;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,9 +51,7 @@ Route::prefix('install')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('spa');
-})->name('home');
+Route::view('/', 'spa')->name('home');
 
 /*
 |--------------------------------------------------------------------------
@@ -68,13 +65,9 @@ Route::post('/api/click', [SiteController::class, 'click'])->middleware('throttl
 Route::get('/api/search', [SiteController::class, 'search'])->middleware('throttle:60,1')->name('api.search');
 Route::get('/api/categories', [ApiCategoryController::class, 'index'])->middleware('throttle:60,1')->name('api.categories');
 Route::get('/api/settings', [SettingsController::class, 'publicSettings'])->middleware('throttle:60,1')->name('api.settings');
-Route::get('/api/friend-links', function () {
-    return response()->json(FriendLink::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get());
-})->middleware('throttle:60,1');
+Route::get('/api/friend-links', [PublicContentController::class, 'friendLinks'])->middleware('throttle:60,1')->name('api.friend-links');
 
-Route::get('/api/ads', function () {
-    return response()->json(Ad::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(['id', 'title', 'image_url', 'link_url', 'position', 'target']));
-})->middleware('throttle:60,1');
+Route::get('/api/ads', [PublicContentController::class, 'ads'])->middleware('throttle:60,1')->name('api.ads');
 
 // Auth API
 Route::get('/api/user', [ApiAuthController::class, 'me'])->name('api.user');
@@ -190,9 +183,7 @@ Route::prefix('admin/api')->middleware(['auth:admin'])->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/admin/{any}', function () {
-    return view('admin');
-})->where('any', '.*')->name('admin.spa');
+Route::view('/admin/{any}', 'admin')->where('any', '.*')->name('admin.spa');
 
 /*
 |--------------------------------------------------------------------------
@@ -200,6 +191,4 @@ Route::get('/admin/{any}', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/{any}', function () {
-    return view('spa');
-})->where('any', '(?!admin)[a-zA-Z0-9\-/]+');
+Route::view('/{any}', 'spa')->where('any', '(?!admin)[a-zA-Z0-9\-/]+');

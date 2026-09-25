@@ -429,8 +429,8 @@ async function handleBgUpload(file) {
       form.home_background_image = data.data.url;
       message.success('上传成功');
     }
-  } catch (e) {
-    message.error(e.response?.data?.message || '上传失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     bgUploading.value = false;
   }
@@ -490,8 +490,8 @@ async function sendTestEmail() {
     } else {
       message.error(data.msg);
     }
-  } catch (e) {
-    message.error(e.response?.data?.msg || '发送失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出（2xx 但 code!==0 的分支见上）
   } finally {
     testEmailSending.value = false;
   }
@@ -515,8 +515,8 @@ async function handleQrcodeUpload(file, field) {
       form[field] = data.data.url;
       message.success('上传成功');
     }
-  } catch (e) {
-    message.error(e.response?.data?.message || '上传失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     qrcodeUploading.value = '';
   }
@@ -594,8 +594,8 @@ async function saveLink() {
     }
     linkModalVisible.value = false;
     fetchFriendLinks();
-  } catch (e) {
-    message.error(e.response?.data?.message || '操作失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     linkSaving.value = false;
   }
@@ -606,8 +606,8 @@ async function deleteLink(id) {
     await request.delete(`/admin/api/friend-links/${id}`);
     message.success('删除成功');
     fetchFriendLinks();
-  } catch (e) {
-    message.error(e.response?.data?.message || '删除失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 
@@ -616,8 +616,8 @@ async function handleSave() {
   try {
     await request.put('/admin/api/settings', { ...form });
     message.success('设置已保存');
-  } catch (e) {
-    message.error(e.response?.data?.message || '保存失败');
+  } catch {
+    // 错误提示已由 request 拦截器统一弹出
   } finally {
     saving.value = false;
   }

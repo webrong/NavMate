@@ -94,7 +94,7 @@ async function toggleAdmin(record) {
     message.success('更新成功');
     store.fetchList();
   } catch {
-    message.error('操作失败');
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 
@@ -104,7 +104,7 @@ async function handleDelete(id) {
     message.success('删除成功');
     store.fetchList();
   } catch {
-    message.error('删除失败');
+    // 错误提示已由 request 拦截器统一弹出
   }
 }
 
