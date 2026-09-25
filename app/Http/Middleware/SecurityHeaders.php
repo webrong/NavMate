@@ -30,12 +30,10 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
         // Content Security Policy (nonce-based — blocks injected inline scripts)
-        // Use an explicit env flag instead of app()->environment(). The latter
-        // can disagree with reality when `artisan serve` inherits a stale
-        // APP_ENV from the parent shell (e.g. on Windows where `set` vars
-        // leak across processes), which leads to CSP being sent on a dev box
-        // and breaking the Vite-built admin shell.
-        $cspDisabled = env('CSP_DISABLED', app()->environment('local'));
+        // The flag lives in config (config/app.php) — reading env() at runtime
+        // silently breaks once the production config is cached, because .env is
+        // no longer loaded after `config:cache`.
+        $cspDisabled = config('app.csp_disabled', false);
 
         if (! $cspDisabled) {
             $csp = "default-src 'self'; ";

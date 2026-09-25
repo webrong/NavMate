@@ -20,10 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureIsAdmin::class,
         ]);
         $middleware->web([
-            RedirectIfNotInstalled::class,
-            PrerenderForBots::class,
-            CheckMaintenanceMode::class,
+            // SecurityHeaders outermost so 302 (install redirect), 503
+            // (maintenance) and bot prerender responses all carry the headers.
+            // Maintenance must run before the bot prerender — otherwise a bot
+            // UA bypasses maintenance mode and gets the full site content.
             SecurityHeaders::class,
+            RedirectIfNotInstalled::class,
+            CheckMaintenanceMode::class,
+            PrerenderForBots::class,
         ]);
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->expectsJson()) {

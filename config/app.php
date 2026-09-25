@@ -31,6 +31,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | CSP Disabled
+    |--------------------------------------------------------------------------
+    |
+    | Disable the Content-Security-Policy header. Defaults to on for local
+    | development (Vite dev server). Read via config() so it keeps working
+    | after `config:cache`.
+    |
+    */
+
+    'csp_disabled' => env('CSP_DISABLED', env('APP_ENV') === 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
