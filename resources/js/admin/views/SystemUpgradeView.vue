@@ -32,7 +32,7 @@
           <span class="new-version-badge">新版本</span>
           <span class="new-version-num">v{{ updateInfo.latest_version }}</span>
         </div>
-        <a-button type="primary" danger :disabled="updating" @click="executeUpdate">
+        <a-button type="primary" danger :disabled="updating" @click="confirmUpgrade">
           {{ updating ? '升级中...' : '立即升级' }}
         </a-button>
       </div>
@@ -83,7 +83,12 @@
         <div v-for="(line, i) in logLines" :key="i" class="log-line">{{ line }}</div>
       </div>
 
-      <div class="upgrading-hint">升级过程中站点将自动进入维护模式，升级完成后恢复</div>
+      <div class="upgrading-actions" style="margin-top: 12px; text-align: center">
+        <a-button :disabled="!updating" @click="cancelUpgrade">取消等待</a-button>
+        <div class="upgrading-hint" style="margin-top: 8px">
+          升级过程中站点将自动进入维护模式，升级完成后恢复。取消只中断前端等待，服务端进程可能仍在执行，请稍后查看升级历史。
+        </div>
+      </div>
     </div>
 
     <!-- 升级结果 -->
@@ -130,7 +135,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { message } from 'antdv-next';
+import { message, Modal } from 'antdv-next';
 import {
   CloudUploadOutlined, ReloadOutlined, CheckCircleOutlined, HistoryOutlined,
   LoadingOutlined,
@@ -158,7 +163,7 @@ const logLines = ref([]);
 
 const progressPercent = computed(() => {
   const doneCount = steps.value.filter((s) => s.status === 'done').length;
-  return Math.round((doneCount / 9) * 100);
+  return Math.round((doneCount / STEP_LABELS.length) * 100);
 });
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -214,6 +219,33 @@ async function checkUpdate() {
 }
 
 /**
+ * Irreversible operation — require an explicit confirmation with the
+ * target version and the risks spelled out.
+ */
+function confirmUpgrade() {
+  Modal.confirm({
+    title: '确认升级？',
+    content: `将从 v${currentVersion.value} 升级到 v${updateInfo.value?.latest_version}。升级会自动备份、进入维护模式、替换文件并运行数据库迁移，失败时会尝试回滚。`,
+    okText: '开始升级',
+    okType: 'danger',
+    cancelText: '再想想',
+    onOk: () => executeUpdate(),
+  });
+}
+
+// Set when the stream reports an error — later step/done events must not
+// flip the state machine back to running/done after a failure
+let streamErrored = false;
+
+let cancelRequested = false;
+
+function cancelUpgrade() {
+  cancelRequested = true;
+  abortController?.abort();
+  message.info('已取消等待，服务端进程可能仍在执行，请稍后查看升级历史');
+}
+
+/**
  * Execute upgrade via SSE stream.
  *
  * The backend streams Server-Sent Events for each step. We consume them with
@@ -226,8 +258,14 @@ async function executeUpdate() {
   logLines.value = [];
   updateResult.value = null;
   updating.value = true;
+  streamErrored = false;
+  cancelRequested = false;
 
   abortController = new AbortController();
+
+  // If the backend stops sending events but keeps the connection open, the
+  // UI would hang on "升级中" forever — abort after an idle window instead.
+  const IDLE_TIMEOUT_MS = 60_000;
 
   try {
     const response = await fetch('/admin/api/system/update', {
@@ -248,11 +286,34 @@ async function executeUpdate() {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let idleTimer = null;
 
-    // Read the stream chunk by chunk, parse SSE events.
+    // Read with an idle guard: if the backend stops sending events but keeps
+    // the connection open, abort instead of hanging on "升级中" forever.
+    const readWithIdleTimeout = () => {
+      const readPromise = reader.read();
+      // When the timeout wins the race the aborted read rejects later —
+      // mark it handled so it doesn't surface as an unhandled rejection.
+      readPromise.catch(() => {});
+
+      return Promise.race([
+        readPromise.then((value) => {
+          clearTimeout(idleTimer);
+          return value;
+        }),
+        new Promise((_, reject) => {
+          idleTimer = setTimeout(() => {
+            abortController?.abort();
+            reject(new Error('升级流超过 60 秒没有新事件，已中断。服务端进程可能仍在执行，请稍后查看升级历史'));
+          }, IDLE_TIMEOUT_MS);
+        }),
+      ]);
+    };
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithIdleTimeout();
+      if (cancelRequested) break;
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -266,7 +327,7 @@ async function executeUpdate() {
       }
     }
     // Flush any remaining buffered data
-    if (buffer.trim()) {
+    if (buffer.trim() && !cancelRequested) {
       handleSseEvent(buffer);
     }
   } catch (e) {
@@ -305,12 +366,13 @@ function handleSseEvent(raw) {
   }
 
   if (eventType === 'step') {
+    if (streamErrored) return;
     const idx = data.step - 1;
-    if (idx < 0 || idx >= 9) return;
+    if (idx < 0 || idx >= STEP_LABELS.length) return;
 
     if (data.status === 'running') {
       steps.value[idx].status = 'running';
-      logLines.value.push(`[${data.step}/9] ${data.message}...`);
+      logLines.value.push(`[${data.step}/${STEP_LABELS.length}] ${data.message}...`);
     } else {
       steps.value[idx].status = 'done';
       // Sub-step detail lines (db backup result, sha256, etc.)
@@ -319,6 +381,7 @@ function handleSseEvent(raw) {
       }
     }
   } else if (eventType === 'done') {
+    if (streamErrored) return;
     // Mark all remaining steps as done
     steps.value.forEach((s) => { s.status = 'done'; });
     updateResult.value = data;
@@ -329,6 +392,7 @@ function handleSseEvent(raw) {
     message.success(data.message || '升级成功');
   } else if (eventType === 'error') {
     updateResult.value = data;
+    streamErrored = true;
     message.error(data.message || '升级失败');
   }
 }
