@@ -11,11 +11,15 @@ class MaintenanceModeTest extends TestCase
 {
     use RefreshDatabase;
 
+    // The PHP CI job doesn't build frontend assets — admin pages would throw
+    // ViteManifestNotFoundException. The maintenance 503s don't need Vite.
+
     private string $marker;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         // CheckMaintenanceMode only runs when the app is "installed"
         $this->marker = storage_path('app/installed');
