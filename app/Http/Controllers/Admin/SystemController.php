@@ -61,6 +61,15 @@ class SystemController extends Controller
         }
 
         return new StreamedResponse(function () {
+            // The upgrade must survive a client disconnect: without this, PHP
+            // terminates the script at the next output flush once the browser
+            // aborts (user cancel / closed tab) — the catch-block cleanup
+            // would never run and maintenance mode would stay on forever.
+            // Cancels are instead handled gracefully: connection_aborted() is
+            // checked at every progress tick below, which throws into the
+            // updater's normal cleanup path.
+            ignore_user_abort(true);
+
             // SSE event helper: format + flush immediately so the client sees
             // each step as it happens (no output buffering).
             $sendEvent = function (string $event, array $data): void {
@@ -74,6 +83,13 @@ class SystemController extends Controller
             };
 
             $onProgress = function (int $step, int $total, string $message, string $status) use ($sendEvent): void {
+                // Client went away mid-upgrade (cancel button, closed tab) —
+                // abort cleanly: the updater's catch restores the backup,
+                // turns maintenance off and records the failure.
+                if (connection_aborted() !== 0) {
+                    throw new \RuntimeException('客户端已断开连接，升级已安全中止');
+                }
+
                 $sendEvent('step', [
                     'step' => $step,
                     'total' => $total,

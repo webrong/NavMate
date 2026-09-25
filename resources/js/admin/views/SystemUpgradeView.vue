@@ -84,9 +84,9 @@
       </div>
 
       <div class="upgrading-actions" style="margin-top: 12px; text-align: center">
-        <a-button :disabled="!updating" @click="cancelUpgrade">取消等待</a-button>
+        <a-button :disabled="!updating" @click="cancelUpgrade">取消升级</a-button>
         <div class="upgrading-hint" style="margin-top: 8px">
-          升级过程中站点将自动进入维护模式，升级完成后恢复。取消只中断前端等待，服务端进程可能仍在执行，请稍后查看升级历史。
+          备份与下载期间站点正常访问；替换文件阶段起自动进入维护模式，升级完成后恢复。取消升级会在下一个进度点安全中止并自动回滚。
         </div>
       </div>
     </div>
@@ -151,11 +151,11 @@ const updateLogs = ref([]);
 const logsLoading = ref(false);
 const expandedKeys = ref([]);
 
-// Upgrade progress state (steps 7/8 must stay in sync with UpdateService:
-// migrations run BEFORE the version marker is stamped)
+// Upgrade progress state (step ORDER must stay in sync with UpdateService:
+// maintenance mode only starts after backup/download, before file replace)
 const STEP_LABELS = [
-  '检查更新', '开启维护模式', '备份当前文件', '备份数据库',
-  '下载新版本', '解压并替换文件', '运行数据库迁移', '更新版本号',
+  '检查更新', '备份当前文件', '备份数据库', '下载新版本',
+  '开启维护模式', '解压并替换文件', '运行数据库迁移', '更新版本号',
   '清除缓存并关闭维护模式',
 ];
 const steps = ref(STEP_LABELS.map((label, i) => ({ n: i + 1, label, status: 'pending' })));
@@ -175,11 +175,22 @@ const logColumns = [
 ];
 
 onMounted(() => {
+  // Leaving the page mid-upgrade cancels the run server-side at the next
+  // progress tick (graceful rollback) — warn before a full page unload.
+  window.addEventListener('beforeunload', onBeforeUnload);
   loadVersion();
   loadLogs();
 });
 
+function onBeforeUnload(e) {
+  if (updating.value) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+}
+
 onUnmounted(() => {
+  window.removeEventListener('beforeunload', onBeforeUnload);
   // Abort any in-flight upgrade stream if the component unmounts.
   if (abortController) {
     abortController.abort();
@@ -242,7 +253,7 @@ let cancelRequested = false;
 function cancelUpgrade() {
   cancelRequested = true;
   abortController?.abort();
-  message.info('已取消等待，服务端进程可能仍在执行，请稍后查看升级历史');
+  message.info('已发送取消请求，服务端将在下一个进度点安全中止并回滚，结果见升级历史');
 }
 
 /**
@@ -373,8 +384,18 @@ function handleSseEvent(raw) {
     if (idx < 0 || idx >= STEP_LABELS.length) return;
 
     if (data.status === 'running') {
+      // Any step before the one that just started must have finished —
+      // the backend only emits 'done' for sub-step details, so the
+      // state machine advances on 'running' events
+      steps.value.forEach((s, i) => {
+        if (i < idx && s.status !== 'done') s.status = 'done';
+      });
       steps.value[idx].status = 'running';
       logLines.value.push(`[${data.step}/${STEP_LABELS.length}] ${data.message}...`);
+      // Progress keepalives can stream in hundreds of lines on a big upgrade
+      if (logLines.value.length > 300) {
+        logLines.value.splice(0, logLines.value.length - 300);
+      }
     } else {
       steps.value[idx].status = 'done';
       // Sub-step detail lines (db backup result, sha256, etc.)

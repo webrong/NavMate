@@ -221,8 +221,10 @@ class UpdateService
 
         // Look for a published "<zip>.sha256" digest so the download-phase
         // integrity check is actually enforceable
+        // Only fetch the digest when an update is actually available — the
+        // digest is only needed for the download that follows
         $sha256 = null;
-        if ($downloadUrl) {
+        if ($hasUpdate && $downloadUrl) {
             $zipName = basename($downloadUrl);
             foreach ($release['assets'] ?? [] as $asset) {
                 if ($asset['name'] === $zipName.'.sha256') {
@@ -335,7 +337,11 @@ class UpdateService
         $currentVersion = $this->getCurrentVersion();
         $log = '';
         $backupPath = null;
+        $zipPath = null;
         $updateInfo = [];
+        // Flips true right before the new files start replacing old ones —
+        // failures before that point touch nothing and must not restore
+        $filesTouched = false;
 
         // Helper: append to log AND notify the progress callback (if any).
         // status 'running' = step just started; 'done' = step finished.
@@ -369,46 +375,59 @@ class UpdateService
                 throw new \RuntimeException('下载地址必须使用 HTTPS 协议');
             }
 
-            // 2. Enable maintenance mode (direct file write, no Artisan::call)
-            $notify(2, '开启维护模式', 'running');
-            $this->enableMaintenanceMode();
+            // 2. Create backup — BEFORE maintenance mode: backup/download are
+            //    read-only steps, and keeping the site live through them
+            //    shrinks the 503 window to extract+migrate only
+            $notify(2, '备份当前文件', 'running');
+            $backupPath = $this->createBackup($currentVersion, function (string $message) use ($notify): void {
+                $notify(2, $message, 'running');
+            });
 
-            // 3. Create backup
-            $notify(3, '备份当前文件', 'running');
-            $backupPath = $this->createBackup($currentVersion);
-
-            // 4. Backup database
-            $notify(4, '备份数据库', 'running');
-            $dbBackup = $this->backupDatabase();
-            $notify(4, $dbBackup
+            // 3. Backup database
+            $notify(3, '备份数据库', 'running');
+            $dbBackup = $this->backupDatabase(function (string $message) use ($notify): void {
+                $notify(3, $message, 'running');
+            });
+            $notify(3, $dbBackup
                 ? "数据库已备份到: {$dbBackup}"
                 : '⚠ 数据库备份跳过（mysqldump 不可用或备份失败）');
 
-            // 5. Download release
-            $notify(5, "下载新版本 {$targetVersion}", 'running');
-            // Stream download progress as 'running' events — without them the
-            // UI sits frozen at this step for the whole (potentially minutes
-            // long, retried) transfer and looks hung
+            // 4. Download release — streamed progress, still live to visitors
+            $notify(4, "下载新版本 {$targetVersion}", 'running');
             $zipPath = $this->downloadRelease($downloadUrl, function (string $message) use ($notify): void {
-                $notify(5, $message, 'running');
+                $notify(4, $message, 'running');
             });
 
-            // 5.5 Verify integrity (SHA256 checksum) if provided by update source
+            // 4.5 Verify integrity (SHA256 checksum) if provided by update source
             $expectedHash = $updateInfo['sha256'] ?? null;
             if ($expectedHash !== null && preg_match('/^[a-f0-9]{64}$/i', $expectedHash)) {
                 $actualHash = hash_file('sha256', $zipPath);
+                if ($actualHash === false) {
+                    @unlink($zipPath);
+                    throw new \RuntimeException('无法计算下载包的 SHA256（磁盘或权限异常）');
+                }
                 if (! hash_equals($updateInfo['sha256'], $actualHash)) {
                     @unlink($zipPath);
                     throw new \RuntimeException("下载包完整性校验失败（预期: {$updateInfo['sha256']}, 实际: {$actualHash}）");
                 }
-                $notify(5, 'SHA256 校验通过');
+                $notify(4, 'SHA256 校验通过');
             } else {
-                $notify(5, '⚠ 更新源未提供 SHA256 校验值，跳过完整性验证');
+                $notify(4, '⚠ 更新源未提供 SHA256 校验值，跳过完整性验证');
             }
 
-            // 6. Extract and replace
+            // 5. Enable maintenance mode — as LATE as possible: everything
+            //    before this point is read-only, so the site 503s only for
+            //    extract + migrate instead of the whole (minutes long) run
+            $notify(5, '开启维护模式', 'running');
+            $this->enableMaintenanceMode();
+
+            // 6. Extract and replace — streams a file-count keepalive, the
+            //    vendor copy alone can outlast the frontend idle window
             $notify(6, '解压并替换文件', 'running');
-            $this->extractAndReplace($zipPath);
+            $filesTouched = true;
+            $this->extractAndReplace($zipPath, function (string $message) use ($notify): void {
+                $notify(6, $message, 'running');
+            });
 
             // 7. Run migrations BEFORE stamping the version — a failed
             //    migration must leave the old version marker intact so
@@ -445,23 +464,28 @@ class UpdateService
         } catch (\Throwable $e) {
             $log .= "\n错误: ".$e->getMessage()."\n";
 
-            // Try to restore from backup
-            if ($backupPath && file_exists($backupPath)) {
+            // Restore files only if the new files were actually copied — a
+            // failure during the read-only phases (check/backup/download)
+            // touched nothing, and restoring on a LIVE site would cause its
+            // own visitor-facing blip
+            if ($filesTouched && $backupPath && file_exists($backupPath)) {
                 $log .= "正在从备份恢复...\n";
                 try {
                     $this->restoreBackup($backupPath);
                     $log .= "已从备份恢复\n";
-                    // The old code is back — roll the version marker back so
-                    // checkForUpdate can offer the same upgrade again.
-                    try {
-                        $this->setCurrentVersion($currentVersion);
-                        $log .= "版本号已回滚为 {$currentVersion}\n";
-                    } catch (\Throwable $versionError) {
-                        $log .= '版本号回滚失败: '.$versionError->getMessage()."\n";
-                    }
                 } catch (\Throwable $restoreError) {
                     $log .= '备份恢复失败: '.$restoreError->getMessage()."\n";
                 }
+            }
+
+            // Roll the version marker back to the old version regardless of
+            // the restore outcome — a stale "new" version would make
+            // checkForUpdate report "no update" and hide the retry forever
+            try {
+                $this->setCurrentVersion($currentVersion);
+                $log .= "版本号确认为 {$currentVersion}\n";
+            } catch (\Throwable $versionError) {
+                $log .= '版本号回滚失败: '.$versionError->getMessage()."\n";
             }
 
             // Ensure maintenance mode is off
@@ -470,13 +494,22 @@ class UpdateService
             } catch (\Throwable) {
             }
 
-            // Log failure
-            UpdateLog::create([
-                'from_version' => $currentVersion,
-                'to_version' => $updateInfo['latest_version'] ?? 'unknown',
-                'status' => 'failed',
-                'log' => $log,
-            ]);
+            // Clean up the downloaded archive if the run died before cleanup()
+            if ($zipPath && is_file($zipPath)) {
+                @unlink($zipPath);
+            }
+
+            // Log failure — a DB hiccup here must not escape and kill the
+            // SSE stream before the error event reaches the client
+            try {
+                UpdateLog::create([
+                    'from_version' => $currentVersion,
+                    'to_version' => $updateInfo['latest_version'] ?? 'unknown',
+                    'status' => 'failed',
+                    'log' => $log,
+                ]);
+            } catch (\Throwable) {
+            }
 
             return [
                 'success' => false,
@@ -555,8 +588,13 @@ class UpdateService
     /**
      * Backup database using mysqldump if available
      */
-    protected function backupDatabase(): ?string
+    protected function backupDatabase(?callable $onProgress = null): ?string
     {
+        // mysqldump only speaks MySQL — sqlite installs have no usable config
+        if (config('database.default') !== 'mysql') {
+            return null;
+        }
+
         $backupDir = storage_path('app/backups');
         if (! is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
@@ -600,10 +638,38 @@ class UpdateService
             $dbName,
         ];
 
+        // Array command form: proc_open executes it directly without a
+        // shell, so no quoting and no injection surface (works cross-platform;
+        // PHP escapes the elements itself on Windows). --single-transaction
+        // avoids locking tables — the site is still live during the backup.
+        $command = [
+            $mysqlDump,
+            '--single-transaction',
+            '-h'.$dbHost,
+            '-P'.(string) $dbPort,
+            '-u'.$dbUser,
+            '--result-file='.$backupFile,
+            $dbName,
+        ];
+
         // Pass password via MYSQL_PWD env var to avoid exposure in process list
         $process = new Process($command, null, $dbPass ? ['MYSQL_PWD' => $dbPass] : null);
         $process->setTimeout(null);
-        $process->run();
+        $process->start();
+
+        // mysqldump streams no progress output — poll with a keepalive so
+        // large dumps don't go silent on the SSE stream
+        if ($onProgress) {
+            $startedAt = microtime(true);
+            while ($process->isRunning()) {
+                usleep(3_000_000);
+                if ($process->isRunning()) {
+                    $onProgress('数据库备份中（已运行 '.(int) (microtime(true) - $startedAt).' 秒）');
+                }
+            }
+        }
+
+        $process->wait();
 
         if ($process->isSuccessful() && file_exists($backupFile)) {
             return $backupFile;
@@ -616,7 +682,7 @@ class UpdateService
     /**
      * Create a backup of the current application files
      */
-    protected function createBackup(string $version): string
+    protected function createBackup(string $version, ?callable $onProgress = null): string
     {
         $backupDir = storage_path('app/backups');
         if (! is_dir($backupDir)) {
@@ -631,18 +697,58 @@ class UpdateService
         }
 
         $base = base_path();
-        $exclude = ['vendor', 'node_modules', '.git', 'storage/app/backups', 'storage/framework/sessions', 'storage/framework/views'];
+        $exclude = ['vendor', 'node_modules', '.git', 'storage/app/backups', 'storage/app/tmp', 'storage/framework/sessions', 'storage/framework/views'];
 
-        $this->addDirectoryToZip($zip, $base, '', $exclude);
+        // Zipping thousands of files can outlast the frontend idle window —
+        // stream a throttled keepalive
+        $count = 0;
+        $lastKeepalive = microtime(true);
+        $onFile = function () use ($onProgress, &$count, &$lastKeepalive): void {
+            $count++;
+
+            if (! $onProgress) {
+                return;
+            }
+
+            $now = microtime(true);
+            if ($count % 500 === 0 || ($now - $lastKeepalive) >= 10) {
+                $lastKeepalive = $now;
+                $onProgress("已备份 {$count} 个文件");
+            }
+        };
+
+        $this->addDirectoryToZip($zip, $base, '', $exclude, $onFile);
         $zip->close();
+
+        $this->pruneOldBackups($backupDir);
 
         return $backupPath;
     }
 
     /**
+     * Keep disk usage bounded: retain only the most recent backups of each
+     * kind (code archives and database dumps).
+     */
+    private function pruneOldBackups(string $backupDir, int $keep = 5): void
+    {
+        foreach (['pre-*.zip', 'db-*.sql'] as $pattern) {
+            $files = glob($backupDir.'/'.$pattern) ?: [];
+            if (count($files) <= $keep) {
+                continue;
+            }
+
+            // glob() returns files in alphabetical order — the timestamp
+            // suffix makes that identical to chronological order
+            foreach (array_slice($files, 0, count($files) - $keep) as $old) {
+                @unlink($old);
+            }
+        }
+    }
+
+    /**
      * Recursively add directory to zip archive
      */
-    protected function addDirectoryToZip(ZipArchive $zip, string $basePath, string $prefix, array $exclude): void
+    protected function addDirectoryToZip(ZipArchive $zip, string $basePath, string $prefix, array $exclude, ?callable $onFile = null): void
     {
         $dir = $basePath.($prefix ? '/'.$prefix : '');
         if (! is_dir($dir)) {
@@ -666,9 +772,12 @@ class UpdateService
 
             $fullPath = "{$basePath}/{$relativePath}";
             if (is_dir($fullPath)) {
-                $this->addDirectoryToZip($zip, $basePath, $relativePath, $exclude);
+                $this->addDirectoryToZip($zip, $basePath, $relativePath, $exclude, $onFile);
             } else {
                 $zip->addFile($fullPath, $relativePath);
+                if ($onFile) {
+                    $onFile();
+                }
             }
         }
     }
@@ -906,7 +1015,7 @@ class UpdateService
     /**
      * Extract archive and replace application files
      */
-    protected function extractAndReplace(string $zipPath): void
+    protected function extractAndReplace(string $zipPath, ?callable $onProgress = null): void
     {
         // Whitelist extraction: validate every entry up front, then extract
         // exactly those names — nothing unreviewed touches the filesystem
@@ -918,9 +1027,17 @@ class UpdateService
         $allowed = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            // Positive charset whitelist (relative paths only) — rejects
-            // traversal, backslashes, drive letters and absolute paths
-            if ($name === false || $name === '' || ! preg_match('#^[A-Za-z0-9_.\-/]+$#', $name) || str_starts_with($name, '/') || preg_match('#^[A-Za-z]:#', $name) || str_contains($name, '..')) {
+            // Structural path safety: reject traversal, absolute paths,
+            // Windows separators/drive letters and NUL bytes. Everything else
+            // passes — the release legitimately contains non-ASCII filenames
+            // (e.g. "public/static/image/QQ图片*.png"), so a charset
+            // whitelist would break every upgrade.
+            if ($name === false || $name === ''
+                || str_contains($name, '..')
+                || str_contains($name, '\\')
+                || str_starts_with($name, '/')
+                || preg_match('#^[A-Za-z]:#', $name)
+                || str_contains($name, "\0")) {
                 $zip->close();
                 throw new \RuntimeException('压缩包包含非法路径: '.$name);
             }
@@ -956,16 +1073,35 @@ class UpdateService
         // Files/directories to preserve
         $preserve = ['.env', 'storage', 'public/uploads', 'node_modules'];
 
-        $this->recursiveCopy($sourceDir, base_path(), $preserve);
+        // Copying vendor alone touches 10k+ files — stream a throttled
+        // keepalive so the SSE stream doesn't go silent mid-extract
+        $copied = 0;
+        $lastKeepalive = microtime(true);
+        try {
+            $this->recursiveCopy($sourceDir, base_path(), $preserve, '', function () use ($onProgress, &$copied, &$lastKeepalive): void {
+                $copied++;
 
-        // Clean up
-        $this->recursiveDelete($tmpDir);
+                if (! $onProgress) {
+                    return;
+                }
+
+                $now = microtime(true);
+                if ($copied % 500 === 0 || ($now - $lastKeepalive) >= 10) {
+                    $lastKeepalive = $now;
+                    $onProgress("已替换 {$copied} 个文件");
+                }
+            });
+        } finally {
+            // Clean up the staged copy even when the copy fails mid-way —
+            // extract-* dirs hold hundreds of MB of new-version files
+            $this->recursiveDelete($tmpDir);
+        }
     }
 
     /**
      * Recursively copy files from source to destination, skipping preserved paths
      */
-    protected function recursiveCopy(string $src, string $dst, array $preserve, string $relativePath = ''): void
+    protected function recursiveCopy(string $src, string $dst, array $preserve, string $relativePath = '', ?callable $onFile = null): void
     {
         $dir = opendir($src);
         if ($dir === false) {
@@ -993,10 +1129,13 @@ class UpdateService
                 if (! is_dir($dstPath)) {
                     mkdir($dstPath, 0755, true);
                 }
-                $this->recursiveCopy($srcPath, $dstPath, $preserve, $currentRelative);
+                $this->recursiveCopy($srcPath, $dstPath, $preserve, $currentRelative, $onFile);
             } else {
                 if (! @copy($srcPath, $dstPath)) {
                     throw new \RuntimeException("文件复制失败: {$currentRelative}");
+                }
+                if ($onFile) {
+                    $onFile();
                 }
             }
         }
@@ -1018,7 +1157,12 @@ class UpdateService
         $allowed = [];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if ($name === false || $name === '' || ! preg_match('#^[A-Za-z0-9_.\-/]+$#', $name) || str_starts_with($name, '/') || preg_match('#^[A-Za-z]:#', $name) || str_contains($name, '..')) {
+            if ($name === false || $name === ''
+                || str_contains($name, '..')
+                || str_contains($name, '\\')
+                || str_starts_with($name, '/')
+                || preg_match('#^[A-Za-z]:#', $name)
+                || str_contains($name, "\0")) {
                 $zip->close();
                 throw new \RuntimeException('备份包含非法路径: '.$name);
             }
@@ -1044,8 +1188,9 @@ class UpdateService
             if ($entry === '.' || $entry === '..' || in_array($entry, $preserve, true)) {
                 continue;
             }
-            // Top-level names only, same positive whitelist as above
-            if (! preg_match('/^[A-Za-z0-9_.-]+$/', $entry)) {
+            // Top-level entries only (no separators), no traversal — names may
+            // legitimately be non-ASCII
+            if (str_contains($entry, '/') || str_contains($entry, '\\') || str_contains($entry, '..')) {
                 continue;
             }
             $target = base_path($entry);
@@ -1056,8 +1201,11 @@ class UpdateService
             }
         }
 
-        $this->recursiveCopy($tmpDir, base_path(), ['.env', 'storage']);
-        $this->recursiveDelete($tmpDir);
+        try {
+            $this->recursiveCopy($tmpDir, base_path(), ['.env', 'storage']);
+        } finally {
+            $this->recursiveDelete($tmpDir);
+        }
     }
 
     /**
