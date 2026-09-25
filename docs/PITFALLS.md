@@ -6,6 +6,24 @@
 
 ---
 
+## P13. 书签解析器吞书签 + 直属书签重复两次（2026-09-25）
+
+**现象**：带文件夹的书签文件导入后，紧挨着子文件夹前面的直属书签消失；同一次导入里其余书签偶尔撞 `sites.url` 唯一键。
+
+**根因**：两个叠加。① `parseItems` 的 `<H3>` 文件夹匹配从当前 `<DT>` 之后**向后无界搜索**，`<DT><A 书签>` 后面跟着的兄弟文件夹 `<H3>` 会被误认成当前项，书签被 `continue` 吞掉；② `flatten` 对文件夹**先递归全部子节点再收集直属书签**，直属书签被发到「null 组 + 目录组」两个分组，第二次插入撞唯一键。
+
+**修复**：① `<H3>` 必须紧跟当前 `<DT>`（中间只允许空白，用 `stripos` 位置守卫）；② `flatten` 只递归子文件夹，直属书签单独收集；③ 重复 URL 改 catch `UniqueConstraintViolationException` 计入 `skipped`。
+
+**教训**：正则定位嵌套标签必须锚定在当前项之后；解析器的输出结构（flatten 分组）要有单测锁行为——`BookmarkImportParserTest` 就是这次补的。
+
+**影响文件**：`app/Services/BookmarkParserService.php`、`tests/Feature/BookmarkImportParserTest.php`
+
+## P12. unique 键错误码跨驱动不一致（1062 vs 19）（2026-09-25）
+
+`catch (QueryException)` 后手写判断 `errorInfo[1] === 1062` 只在 MySQL 成立，SQLite 是 19（Laravel 测试环境跑 sqlite 时这条分支永远失效）。统一改 catch `Illuminate\Database\UniqueConstraintViolationException`（驱动无关）。另：`email_verified_at` 不在 User 的 `#[Fillable]` 里，测试里 `User::create(['email_verified_at' => ...])` 会被静默丢弃，要造已验证用户请走 `User::factory()`（factory 内部 unguarded）。
+
+---
+
 ## P11. 仪表盘点击量缓存导致不更新（2026-06-16）
 
 **现象**：管理员点击站点后，仪表盘的「总点击量」和「今日点击」一点都没变化。

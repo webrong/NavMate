@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClickLog;
 use App\Models\Site;
 use App\Services\UrlFetcherService;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -47,14 +47,10 @@ class SiteController extends Controller
                 'is_public' => false,
                 'visitor_token' => $visitorToken,
             ]);
-        } catch (QueryException $e) {
-            // 1062 = duplicate entry; covers the race between the unique
-            // validation and the insert under concurrent requests
-            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                return response()->json(['message' => '该网址已存在'], 422);
-            }
-
-            throw $e;
+        } catch (UniqueConstraintViolationException) {
+            // Covers the race between the unique validation and the insert
+            // under concurrent requests
+            return response()->json(['message' => '该网址已存在'], 422);
         }
 
         return response()->json(['success' => true, 'site' => $site])

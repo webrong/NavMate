@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Site;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 
 /**
@@ -58,8 +58,12 @@ class BookmarkParserService
 
             $offset = $dtPos + 4;
 
-            // 情况1: 文件夹 <H3>
-            if (preg_match('/<H3[^>]*>(.*?)<\/H3>/si', $content, $folderMatch, 0, $offset)) {
+            // 情况1: 文件夹 <H3> —— 必须紧跟当前 <DT>（只隔空白）。无界搜索
+            // 会把后续兄弟文件夹误认成当前项，吞掉夹在中间的书签
+            $h3Pos = stripos($content, '<H3', $offset);
+            $leading = $h3Pos === false ? '' : substr($content, $offset, $h3Pos - $offset);
+            if ($h3Pos !== false && trim($leading) === ''
+                && preg_match('/<H3[^>]*>(.*?)<\/H3>/si', $content, $folderMatch, 0, $offset)) {
                 $folderName = $this->cleanText($folderMatch[1]);
                 if ($folderName) {
                     // Use PREG_OFFSET_CAPTURE to get accurate position
@@ -250,17 +254,25 @@ class BookmarkParserService
             if ($item['type'] === 'folder') {
                 $folderPath = $parentFolder ? $parentFolder.' / '.$item['name'] : $item['name'];
 
-                // 先递归处理子文件夹
-                $childResults = $this->flatten($item['children'], $folderPath);
-                $result = array_merge($result, $childResults);
+                // Recurse into subfolders ONLY — the folder's direct bookmarks
+                // are collected below, and recursing over them too would emit
+                // each one twice (guaranteed unique-key collisions on import)
+                $subfolders = array_values(array_filter(
+                    $item['children'],
+                    fn ($c) => $c['type'] === 'folder',
+                ));
+                $result = array_merge($result, $this->flatten($subfolders, $folderPath));
 
                 // 收集当前文件夹的直接书签
-                $bookmarks = array_filter($item['children'], fn ($c) => $c['type'] === 'bookmark');
+                $bookmarks = array_values(array_filter(
+                    $item['children'],
+                    fn ($c) => $c['type'] === 'bookmark',
+                ));
                 if (! empty($bookmarks)) {
                     $result[] = [
                         'folder' => $item['name'],
                         'parent_folder' => $parentFolder,
-                        'bookmarks' => array_values($bookmarks),
+                        'bookmarks' => $bookmarks,
                     ];
                 }
             } elseif ($item['type'] === 'bookmark') {
@@ -350,17 +362,13 @@ class BookmarkParserService
 
                     $existingUrls[$url] = true;
                     $imported['sites']++;
-                } catch (QueryException $e) {
+                } catch (UniqueConstraintViolationException) {
                     // sites.url has a UNIQUE index — with skip_duplicate off a
                     // duplicate must be counted and skipped, not roll back the
                     // whole import transaction
-                    if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                        $imported['skipped']++;
+                    $imported['skipped']++;
 
-                        continue;
-                    }
-
-                    throw $e;
+                    continue;
                 }
             }
         }
@@ -432,10 +440,10 @@ class BookmarkParserService
                 $imported['categories']++;
 
                 return $category;
-            } catch (QueryException $e) {
-                // MySQL duplicate key: 1062. Only retry on this error;
-                // anything else rethrows to abort the transaction.
-                if ($attempt === 2 || ($e->errorInfo[1] ?? 0) !== 1062) {
+            } catch (UniqueConstraintViolationException $e) {
+                // Only a slug collision may be retried; anything else rethrows
+                // to abort the transaction.
+                if ($attempt === 2) {
                     throw $e;
                 }
             }
