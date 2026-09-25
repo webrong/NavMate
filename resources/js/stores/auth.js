@@ -43,7 +43,14 @@ export const useAuthStore = defineStore('auth', {
                 return { success: true };
             } catch (e) {
                 const message = e.response?.data?.message || '登录失败';
-                return { success: false, message };
+                // code 'email_unverified' tells the login modal to switch to
+                // the verify-notice dialog
+                return {
+                    success: false,
+                    message,
+                    code: e.response?.data?.code,
+                    email: e.response?.data?.email,
+                };
             } finally {
                 this.loading = false;
             }

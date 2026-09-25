@@ -49,13 +49,17 @@ class AuthControllerTest extends TestCase
             'password' => 'P@ssw0rd!',
         ]);
 
-        // Current implementation does not block unverified users
-        $response->assertOk();
+        // Unverified accounts are blocked with a machine-readable code so the
+        // login modal can switch to the verify-notice dialog
+        $response->assertStatus(403);
+        $response->assertJsonFragment(['code' => 'email_unverified']);
     }
 
     public function test_login_succeeds_for_verified_user(): void
     {
-        User::create([
+        // Factory (not User::create) — email_verified_at is not fillable on
+        // the model, so mass assignment would silently leave the user unverified
+        User::factory()->create([
             'name' => 'Verified',
             'email' => 'verified@example.com',
             'password' => 'P@ssw0rd!',
@@ -73,7 +77,7 @@ class AuthControllerTest extends TestCase
 
     public function test_login_rejects_wrong_password(): void
     {
-        User::create([
+        User::factory()->create([
             'name' => 'User',
             'email' => 'user@example.com',
             'password' => 'P@ssw0rd!',
@@ -90,7 +94,7 @@ class AuthControllerTest extends TestCase
 
     public function test_logout_works(): void
     {
-        $user = User::create([
+        $user = User::factory()->create([
             'name' => 'User',
             'email' => 'user@example.com',
             'password' => 'P@ssw0rd!',
@@ -125,7 +129,7 @@ class AuthControllerTest extends TestCase
 
     public function test_me_returns_user_when_authenticated(): void
     {
-        $user = User::create([
+        $user = User::factory()->create([
             'name' => 'Me',
             'email' => 'me@example.com',
             'password' => 'P@ssw0rd!',

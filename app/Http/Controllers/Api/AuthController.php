@@ -104,6 +104,20 @@ class AuthController extends Controller
 
         $user = $request->user();
 
+        // Unverified accounts may not log in — the register flow auto-logs
+        // them in for onboarding, but any later login requires verification
+        if (is_null($user->email_verified_at)) {
+            Auth::logout();
+
+            Log::info('登录被拒：邮箱未验证', ['user_id' => $user->id, 'ip' => $request->ip()]);
+
+            return response()->json([
+                'message' => '邮箱尚未验证，请先查收验证邮件',
+                'code' => 'email_unverified',
+                'email' => $user->email,
+            ], 403);
+        }
+
         $request->session()->regenerate();
 
         Log::info('登录成功', ['user_id' => $user->id, 'email' => $user->email, 'ip' => $request->ip()]);

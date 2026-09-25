@@ -56,6 +56,10 @@ async function submit() {
     password.value = '';
     toast.success('登录成功');
     emit('close');
+  } else if (result.code === 'email_unverified') {
+    error.value = '';
+    // Hand over to the verify-notice dialog so the user can resend the mail
+    emit('switch-to-verify', { email: result.email || username.value });
   } else {
     error.value = result.message;
   }
