@@ -9,67 +9,99 @@ class UrlFetcherService
 {
     public function fetch(string $url): array
     {
-        if (! filter_var($url, FILTER_VALIDATE_URL)) {
-            return ['title' => null, 'favicon_url' => null];
-        }
-
-        // SSRF protection: resolve DNS once and pin the IP for the request
-        $host = parse_url($url, PHP_URL_HOST);
-        if (! $host) {
-            return ['title' => null, 'favicon_url' => null];
-        }
-
-        // Block known internal hostnames
-        $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
-        if (in_array(strtolower($host), $blockedHosts, true)) {
-            Log::warning('UrlFetcher blocked internal hostname', ['url' => $url]);
-
-            return ['title' => null, 'favicon_url' => null];
-        }
-
-        // Resolve DNS and check IP ONCE — then pin for the actual request
-        $resolvedIp = gethostbyname($host);
-        if ($resolvedIp === $host) {
-            // DNS resolution failed
-            return ['title' => null, 'favicon_url' => null];
-        }
-
-        if (self::isInternalIp($resolvedIp)) {
-            Log::warning('UrlFetcher blocked internal IP', ['url' => $url, 'ip' => $resolvedIp]);
-
-            return ['title' => null, 'favicon_url' => null];
-        }
-
         try {
-            $port = parse_url($url, PHP_URL_PORT) ?? (parse_url($url, PHP_URL_SCHEME) === 'https' ? 443 : 80);
-
-            // Pin the resolved IP via cURL RESOLVE option to prevent DNS rebinding
-            $response = Http::timeout(10)
-                ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-                ->withOptions([
-                    'curl' => [
-                        CURLOPT_RESOLVE => ["{$host}:{$port}:{$resolvedIp}"],
-                    ],
-                ])
-                ->get($url);
-
-            if (! $response->successful()) {
-                return ['title' => null, 'favicon_url' => null];
-            }
-
-            $html = $response->body();
-            $title = $this->extractTitle($html);
-            $faviconUrl = $this->extractFavicon($html, $url);
-
-            return [
-                'title' => $title,
-                'favicon_url' => $faviconUrl,
-            ];
+            $html = $this->fetchHtml($url);
         } catch (\Throwable $e) {
             Log::warning('UrlFetcher failed', ['url' => $url, 'error' => $e->getMessage()]);
 
             return ['title' => null, 'favicon_url' => null];
         }
+
+        if ($html === null) {
+            return ['title' => null, 'favicon_url' => null];
+        }
+
+        return [
+            'title' => $this->extractTitle($html),
+            'favicon_url' => $this->extractFavicon($html, $url),
+        ];
+    }
+
+    /**
+     * Fetch the page body, following redirects manually so that every hop
+     * goes through the full SSRF validation (scheme, hostname, resolved IP).
+     */
+    private function fetchHtml(string $url): ?string
+    {
+        $current = $url;
+
+        for ($hop = 0; $hop < 5; $hop++) {
+            $parsed = parse_url($current);
+            $scheme = strtolower($parsed['scheme'] ?? '');
+
+            if (! in_array($scheme, ['http', 'https'], true)) {
+                return null;
+            }
+
+            $host = $parsed['host'] ?? '';
+            if ($host === '') {
+                return null;
+            }
+
+            // Block known internal hostnames
+            $blockedHosts = ['localhost', 'metadata.google.internal', 'metadata'];
+            if (in_array(strtolower($host), $blockedHosts, true)) {
+                Log::warning('UrlFetcher blocked internal hostname', ['url' => $current]);
+
+                return null;
+            }
+
+            // IP literals bypass gethostbyname (which would fail on them)
+            if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+                $resolvedIp = $host;
+            } else {
+                // Resolve DNS and check the IP, then pin it for the request
+                $resolvedIp = gethostbyname($host);
+                if ($resolvedIp === $host) {
+                    // DNS resolution failed
+                    return null;
+                }
+            }
+
+            if (self::isInternalIp($resolvedIp)) {
+                Log::warning('UrlFetcher blocked internal IP', ['url' => $current, 'ip' => $resolvedIp]);
+
+                return null;
+            }
+
+            // Pin the resolved IP via cURL RESOLVE option to prevent DNS rebinding.
+            // Redirects must never bypass the checks above, so automatic
+            // following stays disabled and each Location is re-validated.
+            $port = $parsed['port'] ?? ($scheme === 'https' ? 443 : 80);
+            $response = Http::timeout(10)
+                ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+                ->withOptions([
+                    'allow_redirects' => false,
+                    'curl' => [
+                        CURLOPT_RESOLVE => ["{$host}:{$port}:{$resolvedIp}"],
+                    ],
+                ])
+                ->get($current);
+
+            if ($response->redirect()) {
+                $location = $response->header('Location');
+                if ($location === '') {
+                    return null;
+                }
+                $current = $this->resolveUrl($current, $location);
+
+                continue;
+            }
+
+            return $response->successful() ? $response->body() : null;
+        }
+
+        return null; // Redirect limit exceeded
     }
 
     /**
@@ -87,6 +119,8 @@ class UrlFetcherService
             $title = trim($matches[1]);
             // Decode HTML entities
             $title = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // Truncated to fit varchar(255) columns in strict SQL mode
+            $title = mb_substr($title, 0, 255);
 
             return $title !== '' ? $title : null;
         }

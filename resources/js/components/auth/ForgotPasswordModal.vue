@@ -5,7 +5,7 @@
       <h3 id="forgot-modal-title" class="auth-modal-title">忘记密码</h3>
 
       <div v-if="sent" class="auth-success">
-        重置密码链接已发送到您的邮箱，请查收。<br />（开发期间请检查 storage/logs/laravel.log）
+        重置密码链接已发送到您的邮箱，请查收。<br />若长时间未收到，请检查垃圾邮件或稍后重试。
       </div>
       <form v-else @submit.prevent="submit">
         <div class="auth-field">

@@ -56,18 +56,21 @@ class Setting extends Model
     {
         try {
             $cached = Cache::get(static::$cacheKey);
-            if ($cached instanceof Collection) {
-                return $cached;
+            // Only plain arrays go through the cache: the database store
+            // disables object unserialization (serializable_classes = false),
+            // so a cached Collection would come back as an unusable object.
+            if (is_array($cached)) {
+                return collect($cached);
             }
         } catch (\Throwable) {
             // Cache corruption — clear and re-fetch
         }
 
         try {
-            $result = static::query()->pluck('value', 'key');
+            $result = static::query()->pluck('value', 'key')->all();
             Cache::put(static::$cacheKey, $result, 3600);
 
-            return $result;
+            return collect($result);
         } catch (\Throwable) {
             // Database not available (e.g. during installation)
             return collect();

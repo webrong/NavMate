@@ -18,9 +18,10 @@
         rel="noopener noreferrer"
         class="site-card"
         @contextmenu.prevent="openContext($event, link)"
-        @touchstart.prevent="onTouchStart($event, link)"
+        @touchstart="onTouchStart($event, link)"
         @touchend="onTouchEnd"
         @touchmove="onTouchEnd"
+        @click="onCardClick"
       >
         <button class="site-fav" @click.stop.prevent="remove(link.id)" title="删除">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -139,6 +140,7 @@ const adding = ref(false);
 // Context menu
 const ctx = reactive({ show: false, x: 0, y: 0, link: null });
 let longPressTimer = null;
+let longPressFired = false;
 
 function openContext(e, link) {
   ctx.x = Math.min(e.clientX, window.innerWidth - 160);
@@ -152,7 +154,9 @@ function closeContext() {
 }
 
 function onTouchStart(e, link) {
+  longPressFired = false;
   longPressTimer = setTimeout(() => {
+    longPressFired = true;
     const touch = e.touches[0];
     openContext({ clientX: touch.clientX, clientY: touch.clientY }, link);
   }, 500);
@@ -160,6 +164,15 @@ function onTouchStart(e, link) {
 
 function onTouchEnd() {
   clearTimeout(longPressTimer);
+}
+
+// A long press opens the context menu; swallow the click it would
+// otherwise produce so the card doesn't navigate too.
+function onCardClick(e) {
+  if (longPressFired) {
+    e.preventDefault();
+    longPressFired = false;
+  }
 }
 
 function editLink() {

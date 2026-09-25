@@ -98,9 +98,9 @@ class BookmarkParserService
             if (preg_match('/<A\s+([^>]*)>(.*?)<\/A>/si', $content, $linkMatch, 0, $offset)) {
                 $attrs = $linkMatch[1];
                 $title = $this->cleanText($linkMatch[2]);
-                $url = $this->extractUrl($attrs);
+                $url = $this->sanitizeBookmarkUrl($this->extractUrl($attrs));
 
-                if ($url && ! Str::startsWith($url, ['javascript:', 'place:', 'data:'])) {
+                if ($url) {
                     $addDate = null;
                     if (preg_match('/ADD_DATE="(\d+)"/si', $attrs, $m)) {
                         $addDate = date('Y-m-d H:i:s', (int) $m[1]);
@@ -171,6 +171,19 @@ class BookmarkParserService
         }
 
         return '';
+    }
+
+    /**
+     * Decode HTML entities and allow only http(s) schemes.
+     * Browsers decode entities when navigating, so "JAVASCRIPT:" or
+     * "&#106;avascript:..." variants must be rejected the same way.
+     */
+    private function sanitizeBookmarkUrl(string $url): string
+    {
+        $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $scheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?: '');
+
+        return in_array($scheme, ['http', 'https'], true) ? $url : '';
     }
 
     /**
